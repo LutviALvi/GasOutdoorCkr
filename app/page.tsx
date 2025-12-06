@@ -35,7 +35,7 @@ export default function Page() {
 								<a href="#cara-sewa">Cara Sewa</a>
 							</Button>
 						</div>
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+						<div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4">
 							<div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-brand-mint/30 to-brand-cream/50 border border-brand-sage/20">
 								<div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-teal to-brand-sage flex items-center justify-center">
 									<CheckCircle className="h-5 w-5 text-white" />
@@ -69,7 +69,7 @@ export default function Page() {
 			<section className="py-20 relative overflow-hidden">
 				<div className="absolute inset-0 gradient-lavender opacity-20"></div>
 				<div className="relative mx-auto max-w-6xl px-4">
-					<div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 						<div className="text-center group">
 							<div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-brand-teal to-brand-sage flex items-center justify-center group-hover:scale-110 transition-transform">
 								<Users className="h-8 w-8 text-white" />
@@ -138,15 +138,15 @@ export default function Page() {
 			{/* Review Marquee Section */}
 			<ReviewMarquee />
 
-			<section className="mx-auto max-w-6xl px-4 py-20 grid gap-12">
+			<section className="mx-auto max-w-6xl px-4 py-20 grid  gap-10">
 				<div className="text-center space-y-4">
-					<h2 className="text-4xl font-bold bg-gradient-to-r from-brand-teal via-brand-orange to-brand-coral bg-clip-text text-transparent">Kategori Populer</h2>
-					<p className="text-brand-navy/70 text-lg">Pilih sesuai kebutuhan adventure Anda</p>
+					<h2 className="text-4xl font-bold bg-gradient-to-r from-brand-teal via-brand-orange to-brand-coral bg-clip-text text-transparent mb-6">Kategori Populer</h2>
+					<p className="text-brand-navy/70 text-lg ">Pilih sesuai kebutuhan adventure Anda</p>
 				</div>
-				<div className="grid gap-8 sm:grid-cols-3">
-					<Link href="/products?category=Tenda" className="group relative overflow-hidden rounded-3xl border-3 border-brand-teal/30  hover:shadow-2xl  transition-all duration-500">
+				<div className="grid gap-2 sm:grid-cols-3">
+					<Link href="/products?category=Tenda" className="group relative overflow-hidden rounded-3xl border-2 border-brand-teal/30  hover:shadow-2xl  transition-all duration-500">
 						<div className="absolute inset-0 gradient-ocean opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-[16/9] overflow-hidden">
+						<div className="relative aspect-[4/3] overflow-hidden">
 							<Image src="/images/tenda.jpg" alt="Kategori Tenda" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
 						</div>
 						<div className="relative p-8 bg-gradient-to-br from-white to-brand-mint/30">
@@ -154,9 +154,9 @@ export default function Page() {
 							<div className="text-brand-navy/70">Berbagai ukuran untuk solo hingga keluarga</div>
 						</div>
 					</Link>
-					<Link href="/products?category=Tidur" className="group relative overflow-hidden rounded-3xl border-3 border-brand-orange/30  hover:shadow-2xl  transition-all duration-500">
+					<Link href="/products?category=Tidur" className="group relative overflow-hidden rounded-3xl border-2 border-brand-orange/30  hover:shadow-2xl  transition-all duration-500">
 						<div className="absolute inset-0 gradient-sunset opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-[16/9] overflow-hidden">
+						<div className="relative aspect-[4/3] overflow-hidden">
 							<Image src="/images/sb.jpg" alt="Kategori Perlengkapan Tidur" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
 						</div>
 						<div className="relative p-8 bg-gradient-to-br from-white to-brand-coral/10">
@@ -164,9 +164,19 @@ export default function Page() {
 							<div className="text-brand-navy/70">Sleeping bag dan matras berkualitas</div>
 						</div>
 					</Link>
-					<Link href="/products?category=Dapur" className="group relative overflow-hidden rounded-3xl border-3 border-brand-sage/30 hover:hover:shadow-2xl  transition-all duration-500">
+					<Link href="/products?category=Tidur" className="group relative overflow-hidden rounded-3xl border-2 border-brand-orange/30  hover:shadow-2xl  transition-all duration-500">
+						<div className="absolute inset-0 gradient-sunset opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
+						<div className="relative aspect-[4/3] overflow-hidden">
+							<Image src="/images/carrier.jpg" alt="Kategori Perlengkapan Tidur" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+						</div>
+						<div className="relative p-8 bg-gradient-to-br from-white to-brand-coral/10">
+							<div className="font-bold text-xl text-brand-orange mb-2">Carrier</div>
+							<div className="text-brand-navy/70">carrier tas gunung untuk membawa perlengkapan </div>
+						</div>
+					</Link>
+					<Link href="/products?category=Dapur" className="col-start-2 group relative overflow-hidden rounded-3xl border-2 border-brand-sage/30 hover:hover:shadow-2xl  transition-all duration-500">
 						<div className="absolute inset-0 gradient-lavender opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-[16/9] overflow-hidden">
+						<div className="relative aspect-[4/3] overflow-hidden">
 							<Image src="/images/nesting.jpg" alt="Kategori Dapur Camping" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
 						</div>
 						<div className="relative p-8 bg-gradient-to-br from-white to-brand-lavender/10">
