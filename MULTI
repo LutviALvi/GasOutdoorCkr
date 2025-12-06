@@ -1,0 +1,89 @@
+// app/globals.css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 47.4% 11.2%;
+
+  /* Brand palette (Logo-based) */
+  --primary: 192 70% 21%;               /* deep teal */
+  --primary-foreground: 180 20% 96%;     /* near-white on teal */
+  --secondary: 36 92% 55%;               /* sunset orange */
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 192 44% 92%;                  /* pale teal */
+  --muted-foreground: 200 15% 35%;
+
+  --accent: 36 92% 55%;                  /* use orange as accent */
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 192 20% 85%;
+  --input: 192 20% 85%;
+  --ring: 72 22% 88%;                    /* soft cream */
+
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 11.2%;
+}
+
+.dark {
+  --background: 206 60% 10%;             /* deep nautical teal */
+  --foreground: 180 20% 96%;
+
+  --primary: 192 60% 42%;                /* brighter teal for dark */
+  --primary-foreground: 180 20% 96%;
+
+  --secondary: 36 92% 60%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 200 30% 18%;
+  --muted-foreground: 190 15% 80%;
+
+  --accent: 36 92% 60%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 200 20% 25%;
+  --input: 200 20% 25%;
+  --ring: 72 22% 70%;
+
+  --card: 206 60% 10%;
+  --card-foreground: 180 20% 96%;
+}
+
+// components/site-header.tsx
+// Assuming the existing code has a small count badge and logo wrapper
+// Update small count badge
+className="absolute -right-2 -top-2 min-w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] px-1 flex items-center justify-center"
+
+// Update logo wrapper ring color
+className="ring-muted"
+
+// app/page.tsx
+// Update page background gradient
+className="min-h-screen bg-gradient-to-b from-muted/50 to-white"
+
+// Update hero feature icon colors
+className="text-primary"
+
+// components/product-card.tsx
+// Update price text color
+className="text-lg font-bold text-primary"
+
+// app/products/[slug]/page.tsx
+// Update price color
+className="text-primary"
+
+// app/cart/page.tsx
+// Update total color
+className="text-primary"
+
+// app/checkout/page.tsx
+// Update total color
+className="text-primary"
+
+// app/success/page.tsx
+// Update success icon color
+className="text-primary"
