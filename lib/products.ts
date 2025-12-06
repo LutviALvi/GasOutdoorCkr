@@ -74,7 +74,7 @@ export const PRODUCTS: Product[] = [
 		pricePerDay: 15000,
 		pricePerTrip: 50000,
 		stock: 12,
-		image: '/Images/nesting.jpg',
+		image: '/images/nesting.jpg',
 		description: 'Peralatan masak camping (panci, wajan, mangkuk) aluminium.',
 	},
 	{
