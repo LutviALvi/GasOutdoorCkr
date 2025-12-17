@@ -29,7 +29,7 @@ export default function SiteFooter() {
 								<Phone className="h-5 w-5" />
 							</a>
 							<a
-								href="mailto:cs@gasoutdoor.ckr"
+								href="mailto:GasOutdoor@gmail.com"
 								className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-lavender to-brand-mint flex items-center justify-center text-brand-navy hover:scale-110 transition-transform">
 								<Mail className="h-5 w-5" />
 							</a>
@@ -70,21 +70,21 @@ export default function SiteFooter() {
 								<Phone className="h-5 w-5 text-brand-mint mt-0.5" />
 								<div>
 									<div className="text-white/90 font-medium">WhatsApp</div>
-									<div className="text-white/70 text-sm">08xx-xxxx-xxxx</div>
+									<div className="text-white/70 text-sm">0851-5624-7282</div>
 								</div>
 							</li>
 							<li className="flex items-start gap-3">
 								<Mail className="h-5 w-5 text-brand-mint mt-0.5" />
 								<div>
 									<div className="text-white/90 font-medium">Email</div>
-									<div className="text-white/70 text-sm">cs@gasoutdoor.ckr</div>
+									<div className="text-white/70 text-sm">GasOutdoor@gmail.com</div>
 								</div>
 							</li>
 							<li className="flex items-start gap-3">
 								<MapPin className="h-5 w-5 text-brand-mint mt-0.5" />
 								<div>
 									<div className="text-white/90 font-medium">Lokasi</div>
-									<div className="text-white/70 text-sm">Cikarang, Bekasi</div>
+									<div className="text-white/70 text-sm">Cikarang selatan, Bekasi</div>
 								</div>
 							</li>
 						</ul>
