@@ -23,7 +23,10 @@ export default function AdminLayout({
     setIsHydrated(true)
   }, [])
 
+  // Proteksi Halaman Admin: Cek apakah user sudah login
   useEffect(() => {
+    // Jika sudah loading (hydrated), belum login, dan bukan di halaman login
+    // Maka tendang kembali ke halaman login
     if (isHydrated && !isLoggedIn && !isLoginPage) {
       router.push("/admin/login")
     }

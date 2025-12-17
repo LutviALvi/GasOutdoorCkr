@@ -1,27 +1,41 @@
+"use client"
+
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
 interface AuthStore {
   isLoggedIn: boolean
-  login: (username: string, password: string) => boolean
+  user: { id: string; username: string } | null
+  login: (username: string, password: string) => Promise<boolean>
   logout: () => void
 }
-
-const ADMIN_USERNAME = "admin"
-const ADMIN_PASSWORD = "admin123"
 
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       isLoggedIn: false,
-      login: (username: string, password: string) => {
-        if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-          set({ isLoggedIn: true })
-          return true
+      user: null,
+      login: async (username: string, password: string) => {
+        try {
+          const res = await fetch("/api/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          })
+
+          const data = await res.json()
+
+          if (data.success && data.user) {
+            set({ isLoggedIn: true, user: data.user })
+            return true
+          }
+          return false
+        } catch (error) {
+          console.error("Login error:", error)
+          return false
         }
-        return false
       },
-      logout: () => set({ isLoggedIn: false }),
+      logout: () => set({ isLoggedIn: false, user: null }),
     }),
     {
       name: "gasoutdoor_auth",

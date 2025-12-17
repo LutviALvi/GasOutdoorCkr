@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
-import { useDiscountStore, type DiscountCode } from "@/lib/discount-store"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,12 +10,27 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Pencil, Trash2, Ticket, Search, Percent, Calendar } from "lucide-react"
+import { Plus, Pencil, Trash2, Ticket, Search, Percent, Calendar, Loader2 } from "lucide-react"
+
+// Interface untuk Kode Diskon
+interface DiscountCode {
+  id: string
+  code: string
+  percentage: number
+  max_uses: number | null
+  used_count: number
+  description: string
+  valid_from: string | null
+  valid_to: string | null
+  is_active: boolean
+  created_at: string
+}
 
 export default function DiscountsPage() {
   const router = useRouter()
   const { isLoggedIn } = useAuthStore()
-  const { discountCodes, addDiscountCode, updateDiscountCode, deleteDiscountCode } = useDiscountStore()
+  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
+  const [loading, setLoading] = useState(true)
   const [isHydrated, setIsHydrated] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -39,8 +53,26 @@ export default function DiscountsPage() {
   useEffect(() => {
     if (isHydrated && !isLoggedIn) {
       router.push("/admin/login")
+      return
+    }
+    if (isHydrated) {
+      fetchDiscounts()
     }
   }, [isHydrated, isLoggedIn, router])
+
+  async function fetchDiscounts() {
+    try {
+      const res = await fetch("/api/discounts")
+      if (res.ok) {
+        const data = await res.json()
+        setDiscountCodes(data)
+      }
+    } catch (error) {
+      console.error("Error fetching discounts:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (!isHydrated || !isLoggedIn) {
     return null
@@ -60,110 +92,131 @@ export default function DiscountsPage() {
     setEditingDiscount(discount)
     setFormCode(discount.code)
     setFormPercentage(discount.percentage.toString())
-    setFormDescription(discount.description)
-    setFormMaxUses(discount.maxUses?.toString() || "")
-    setFormValidFrom(discount.validFrom || "")
-    setFormValidTo(discount.validTo || "")
-    setFormIsActive(discount.isActive)
+    setFormDescription(discount.description || "")
+    setFormMaxUses(discount.max_uses?.toString() || "")
+    setFormValidFrom(discount.valid_from?.split("T")[0] || "")
+    setFormValidTo(discount.valid_to?.split("T")[0] || "")
+    setFormIsActive(discount.is_active)
   }
 
-  const handleAdd = () => {
-    if (!formCode.trim()) {
-      alert("Kode diskon harus diisi")
-      return
-    }
-    if (!formPercentage || Number.parseInt(formPercentage) <= 0) {
-      alert("Persentase diskon harus lebih dari 0")
-      return
-    }
-    if (!formDescription.trim()) {
-      alert("Deskripsi harus diisi")
+  // Tambah kode diskon baru
+  const handleAdd = async () => {
+    // Validasi form
+    if (!formCode.trim() || !formPercentage || !formDescription.trim()) {
+      alert("Kode, persentase, dan deskripsi harus diisi")
       return
     }
 
     setIsSaving(true)
 
     try {
-      addDiscountCode({
-        code: formCode.toUpperCase().trim(),
-        percentage: Number.parseInt(formPercentage),
-        description: formDescription.trim(),
-        maxUses: formMaxUses ? Number.parseInt(formMaxUses) : undefined,
-        validFrom: formValidFrom || undefined,
-        validTo: formValidTo || undefined,
-        isActive: formIsActive,
+      const res = await fetch("/api/discounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: formCode.toUpperCase().trim(),
+          percentage: parseInt(formPercentage),
+          description: formDescription.trim(),
+          maxUses: formMaxUses ? parseInt(formMaxUses) : null,
+          validFrom: formValidFrom || null,
+          validTo: formValidTo || null,
+          isActive: formIsActive,
+        }),
       })
 
-      resetForm()
-      setIsAddOpen(false)
-      alert("Kode diskon berhasil ditambahkan!")
+      if (res.ok) {
+        await fetchDiscounts() // Refresh data
+        resetForm()
+        setIsAddOpen(false) // Tutup dialog
+      } else {
+        alert("Gagal menambahkan kode diskon")
+      }
     } catch (error) {
+      console.error("Error adding discount:", error)
       alert("Gagal menambahkan kode diskon")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingDiscount) return
-    if (!formCode.trim()) {
-      alert("Kode diskon harus diisi")
-      return
-    }
-    if (!formPercentage || Number.parseInt(formPercentage) <= 0) {
-      alert("Persentase diskon harus lebih dari 0")
-      return
-    }
-    if (!formDescription.trim()) {
-      alert("Deskripsi harus diisi")
+    if (!formCode.trim() || !formPercentage || !formDescription.trim()) {
+      alert("Kode, persentase, dan deskripsi harus diisi")
       return
     }
 
     setIsSaving(true)
 
     try {
-      updateDiscountCode(editingDiscount.id, {
-        code: formCode.toUpperCase().trim(),
-        percentage: Number.parseInt(formPercentage),
-        description: formDescription.trim(),
-        maxUses: formMaxUses ? Number.parseInt(formMaxUses) : undefined,
-        validFrom: formValidFrom || undefined,
-        validTo: formValidTo || undefined,
-        isActive: formIsActive,
+      const res = await fetch(`/api/discounts/${editingDiscount.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: formCode.toUpperCase().trim(),
+          percentage: parseInt(formPercentage),
+          description: formDescription.trim(),
+          maxUses: formMaxUses ? parseInt(formMaxUses) : null,
+          validFrom: formValidFrom || null,
+          validTo: formValidTo || null,
+          isActive: formIsActive,
+        }),
       })
 
-      resetForm()
-      setEditingDiscount(null)
-      alert("Kode diskon berhasil diperbarui!")
+      if (res.ok) {
+        await fetchDiscounts()
+        resetForm()
+        setEditingDiscount(null)
+      } else {
+        alert("Gagal memperbarui kode diskon")
+      }
     } catch (error) {
+      console.error("Error updating discount:", error)
       alert("Gagal memperbarui kode diskon")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus kode diskon ini?")) {
-      deleteDiscountCode(id)
+  const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus kode diskon ini?")) return
+
+    try {
+      const res = await fetch(`/api/discounts/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        await fetchDiscounts()
+      } else {
+        alert("Gagal menghapus kode diskon")
+      }
+    } catch (error) {
+      console.error("Error deleting discount:", error)
+      alert("Gagal menghapus kode diskon")
     }
   }
 
   const filteredDiscounts = discountCodes.filter(
     (d) =>
       d.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      d.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      (d.description && d.description.toLowerCase().includes(searchTerm.toLowerCase())),
   )
 
-  // Stats
-  const totalActive = discountCodes.filter((d) => d.isActive).length
-  const totalUsed = discountCodes.reduce((sum, d) => sum + d.usedCount, 0)
+  const totalActive = discountCodes.filter((d) => d.is_active).length
+  const totalUsed = discountCodes.reduce((sum, d) => sum + d.used_count, 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Kode Diskon</h1>
-          <p className="text-muted-foreground">Kelola kode promo dan diskon</p>
+          <p className="text-muted-foreground">Data dari database Supabase</p>
         </div>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
@@ -178,9 +231,7 @@ export default function DiscountsPage() {
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>
-                  Kode Diskon <span className="text-red-500">*</span>
-                </Label>
+                <Label>Kode Diskon *</Label>
                 <Input
                   placeholder="PROMO10"
                   value={formCode}
@@ -188,9 +239,7 @@ export default function DiscountsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>
-                  Persentase Diskon (%) <span className="text-red-500">*</span>
-                </Label>
+                <Label>Persentase Diskon (%) *</Label>
                 <Input
                   type="number"
                   placeholder="10"
@@ -201,9 +250,7 @@ export default function DiscountsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>
-                  Deskripsi <span className="text-red-500">*</span>
-                </Label>
+                <Label>Deskripsi *</Label>
                 <Input
                   placeholder="Diskon 10% untuk semua produk"
                   value={formDescription}
@@ -211,7 +258,7 @@ export default function DiscountsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Maksimal Penggunaan (opsional)</Label>
+                <Label>Maksimal Penggunaan</Label>
                 <Input
                   type="number"
                   placeholder="100"
@@ -234,11 +281,11 @@ export default function DiscountsPage() {
                 <Switch checked={formIsActive} onCheckedChange={setFormIsActive} />
               </div>
               <Button
-                type="button"
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white"
                 onClick={handleAdd}
-                disabled={isSaving || !formCode.trim() || !formPercentage || !formDescription.trim()}
+                disabled={isSaving}
               >
+                {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 {isSaving ? "Menyimpan..." : "Simpan Kode Diskon"}
               </Button>
             </div>
@@ -326,24 +373,18 @@ export default function DiscountsPage() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-mono font-bold text-lg bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent">
-                        {discount.code}
-                      </span>
-                      <Badge
-                        className={discount.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                      >
-                        {discount.isActive ? "Aktif" : "Tidak Aktif"}
+                      <span className="font-mono font-bold text-lg text-teal-600">{discount.code}</span>
+                      <Badge className={discount.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                        {discount.is_active ? "Aktif" : "Tidak Aktif"}
                       </Badge>
                       <Badge variant="outline">{discount.percentage}%</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">{discount.description}</p>
                     <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
                       <span>
-                        Digunakan: {discount.usedCount}
-                        {discount.maxUses ? `/${discount.maxUses}` : ""}
+                        Digunakan: {discount.used_count}
+                        {discount.max_uses ? `/${discount.max_uses}` : ""}
                       </span>
-                      {discount.validFrom && <span>Dari: {discount.validFrom}</span>}
-                      {discount.validTo && <span>Sampai: {discount.validTo}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -362,70 +403,35 @@ export default function DiscountsPage() {
                         </DialogHeader>
                         <div className="space-y-4 mt-4">
                           <div className="space-y-2">
-                            <Label>
-                              Kode Diskon <span className="text-red-500">*</span>
-                            </Label>
+                            <Label>Kode Diskon *</Label>
                             <Input
-                              placeholder="PROMO10"
                               value={formCode}
                               onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label>
-                              Persentase Diskon (%) <span className="text-red-500">*</span>
-                            </Label>
+                            <Label>Persentase Diskon (%) *</Label>
                             <Input
                               type="number"
-                              placeholder="10"
-                              min="1"
-                              max="100"
                               value={formPercentage}
                               onChange={(e) => setFormPercentage(e.target.value)}
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label>
-                              Deskripsi <span className="text-red-500">*</span>
-                            </Label>
+                            <Label>Deskripsi *</Label>
                             <Input
-                              placeholder="Diskon 10% untuk semua produk"
                               value={formDescription}
                               onChange={(e) => setFormDescription(e.target.value)}
                             />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Maksimal Penggunaan (opsional)</Label>
-                            <Input
-                              type="number"
-                              placeholder="100"
-                              value={formMaxUses}
-                              onChange={(e) => setFormMaxUses(e.target.value)}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Berlaku Dari</Label>
-                              <Input
-                                type="date"
-                                value={formValidFrom}
-                                onChange={(e) => setFormValidFrom(e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Berlaku Sampai</Label>
-                              <Input type="date" value={formValidTo} onChange={(e) => setFormValidTo(e.target.value)} />
-                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <Label>Status Aktif</Label>
                             <Switch checked={formIsActive} onCheckedChange={setFormIsActive} />
                           </div>
                           <Button
-                            type="button"
                             className="w-full bg-teal-600 hover:bg-teal-700 text-white"
                             onClick={handleUpdate}
-                            disabled={isSaving || !formCode.trim() || !formPercentage || !formDescription.trim()}
+                            disabled={isSaving}
                           >
                             {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
                           </Button>

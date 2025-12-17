@@ -7,11 +7,14 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { useCartStore } from '@/lib/cart-store';
 import type { Product } from '@/lib/products';
 import { Badge } from '@/components/ui/badge';
-import { Star, Heart } from 'lucide-react';
+import { Star, Heart, ShoppingCart } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ProductCard({ product }: { product?: Product }) {
-	const addItem = useCartStore((s) => s.addItem);
-	const rentalPeriod = useCartStore((s) => s.rentalPeriod);
+	const addItem = useCartStore((s) => s.addItem); // Fungsi untuk tambah ke keranjang
+	const rentalPeriod = useCartStore((s) => s.rentalPeriod); // Mengambil tanggal sewa dari global store
+	
+	// Data default jika produk tidak valid (fallback)
 	const p: Product = product ?? {
 		id: 'placeholder',
 		slug: 'placeholder',
@@ -24,6 +27,7 @@ export default function ProductCard({ product }: { product?: Product }) {
 		description: 'Deskripsi produk.',
 	};
 
+	// Fungsi helper untuk menentukan warna label kategori
 	const getCategoryColor = (category: string) => {
 		switch (category) {
 			case 'Tenda':
@@ -41,7 +45,19 @@ export default function ProductCard({ product }: { product?: Product }) {
 		}
 	};
 
+	// Cek apakah user sudah pilih tanggal sewa
 	const isDateSelected = rentalPeriod?.from && rentalPeriod?.to;
+
+	const handleAddToCart = () => {
+		// Tambahkan item ke keranjang belanja
+		addItem(p.id, 1);
+		// Munculkan notifikasi sukses (Toast)
+		toast.success(`${p.name} ditambahkan ke keranjang!`, {
+			description: 'Klik keranjang untuk melihat pesanan Anda.',
+			icon: <ShoppingCart className="h-4 w-4" />,
+			duration: 3000,
+		});
+	};
 
 	return (
 		<Card className="h-full flex flex-col group hover:shadow-2xl transition-all duration-500 border-2 border-transparent hover:border-brand-mint/40 overflow-hidden bg-gradient-to-br from-white to-brand-cream/30">
@@ -77,15 +93,16 @@ export default function ProductCard({ product }: { product?: Product }) {
 					<span className="text-brand-navy/70">
 						Stok: <span className="font-semibold text-brand-teal">{p.stock}</span>
 					</span>
-					<div className="flex items-center gap-1">
-						<div className="flex">
-							{[...Array(5)].map((_, i) => (
-								<Star key={i} className={`h-3 w-3 ${i < 4 ? 'text-brand-sunset fill-current' : 'text-brand-mint'}`} />
-							))}
+						{/* 5-Star Rating Display */}
+						<div className="flex items-center gap-1">
+							<div className="flex">
+								{[...Array(5)].map((_, i) => (
+									<Star key={i} className="h-3 w-3 text-brand-sunset fill-current" />
+								))}
+							</div>
+							<span className="text-xs font-medium text-brand-navy/70 ml-1">5.0</span>
 						</div>
-						<span className="text-xs font-medium text-brand-navy/70 ml-1">4.8</span>
 					</div>
-				</div>
 			</CardContent>
 			<CardFooter className="pt-0">
 				<div className="flex w-full gap-2">
@@ -94,7 +111,7 @@ export default function ProductCard({ product }: { product?: Product }) {
 					</Button>
 					<Button
 						className="w-1/2 bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-lg hover:shadow-xl transition-all duration-300"
-						onClick={() => addItem(p.id, 1)}
+						onClick={handleAddToCart}
 						disabled={p.stock <= 0 || !isDateSelected}
 						title={!isDateSelected ? 'Pilih tanggal sewa terlebih dahulu' : ''}>
 						Tambah

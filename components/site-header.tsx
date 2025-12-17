@@ -8,11 +8,15 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 export default function SiteHeader() {
-	const items = useCartStore((s) => s.items);
-	const [mounted, setMounted] = useState(false);
-	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const items = useCartStore((s) => s.items); // Ambil data item keranjang
+	const [mounted, setMounted] = useState(false); // State untuk cek apakah komponen sudah di-mount (client-side)
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // State menu mobile (buka/tutup)
 
+	// Pastikan komponen hanya render bagian interaktif setelah client-mount
+	// Ini untuk mencegah 'Hydration Error' karena perbedaan server vs client
 	useEffect(() => setMounted(true), []);
+	
+	// Hitung total jumlah item di keranjang
 	const count = items.reduce((acc, it) => acc + it.quantity, 0);
 
 	return (
@@ -27,7 +31,7 @@ export default function SiteHeader() {
 					<span className="font-extrabold tracking-tight text-xl bg-gradient-to-r from-primary to-secondary bg-clip-text ">GASOUTDOOR.CKR</span>
 				</Link>
 
-				{/* Desktop Navigation */}
+				{/* Navigasi Desktop (Disembunyikan di layar kecil 'hidden md:flex') */}
 				<nav className="ml-auto hidden md:flex items-center gap-1">
 					<Button asChild variant="ghost" className="hover:bg-primary/10">
 						<Link href="/">Home</Link>
@@ -44,6 +48,7 @@ export default function SiteHeader() {
 					<Button asChild variant="ghost" className="hover:bg-primary/10">
 						<Link href="/#kontak">Kontak</Link>
 					</Button>
+					{/* Tombol Admin disembunyikan sementara */}
 					{/* <Button asChild variant="ghost" className="hover:bg-primary/10">
 						<Link href="/admin">Admin</Link>
 					</Button> */}
@@ -51,6 +56,7 @@ export default function SiteHeader() {
 						<Link href="/cart" aria-label="Buka keranjang">
 							<ShoppingCart className="h-4 w-4" />
 							<span className="sr-only">Keranjang</span>
+							{/* Badge jumlah item (Hanya muncul jika > 0) */}
 							{mounted && count > 0 ? (
 								<span
 									aria-label="Jumlah item di keranjang"

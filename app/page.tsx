@@ -11,7 +11,7 @@ export default function Page() {
 		<main className="min-h-screen">
 			<SiteHeader />
 
-			{/* Hero Section with Multi-color Gradient */}
+			{/* Bagian Utama (Hero Section) dengan background gradasi */}
 			<section className="relative overflow-hidden">
 				<div className="absolute inset-0 gradient-sunset opacity-15"></div>
 				<div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-mint/20"></div>
@@ -65,7 +65,7 @@ export default function Page() {
 				</div>
 			</section>
 
-			{/* Enhanced Stats Section */}
+			{/* Bagian Statistik / Angka Penting */}
 			<section className="py-20 relative overflow-hidden">
 				<div className="absolute inset-0 gradient-lavender opacity-20"></div>
 				<div className="relative mx-auto max-w-6xl px-4">
@@ -138,6 +138,7 @@ export default function Page() {
 			{/* Review Marquee Section */}
 			<ReviewMarquee />
 
+			{/* Bagian Kategori Populer */}
 			<section className="mx-auto max-w-6xl px-4 py-20 grid  gap-10">
 				<div className="text-center space-y-4">
 					<h2 className="text-4xl font-bold bg-gradient-to-r from-brand-teal via-brand-orange to-brand-coral bg-clip-text text-transparent mb-6">Kategori Populer</h2>

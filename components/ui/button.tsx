@@ -1,10 +1,12 @@
 import React from "react"
+import { Slot } from "@radix-ui/react-slot"
 import { cn } from "@/lib/utils"
 import type { ButtonHTMLAttributes } from "react"
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "outline" | "destructive" | "ghost"
   size?: "icon" | "sm" | "md" | "lg"
+  asChild?: boolean
 }
 
 const buttonVariants = {
@@ -21,10 +23,11 @@ const buttonSizes = {
   lg: "h-11 px-8 rounded-lg",
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
     return (
-      <button
+      <Comp
         className={cn(
           "inline-flex items-center justify-center font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           buttonVariants[variant || "default"],
@@ -37,5 +40,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     )
   },
 )
-
 Button.displayName = "Button"
+
+export { Button, buttonVariants }

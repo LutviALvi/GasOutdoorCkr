@@ -5,7 +5,7 @@ import type React from "react"
 import SiteHeader from "@/components/site-header"
 import SiteFooter from "@/components/site-footer"
 import { useCartStore } from "@/lib/cart-store"
-import { getProductById } from "@/lib/products"
+import type { Product } from "@/lib/products"
 import { differenceInCalendarDays, format } from "date-fns"
 import { id as localeID } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -14,14 +14,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
-import { validateDiscountCode, calculateDiscount } from "@/lib/discount-codes"
+import { Loader2 } from "lucide-react"
 
 export default function CheckoutPage() {
   const router = useRouter()
   const cart = useCartStore()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [discountCode, setDiscountCode] = useState("")
   const [discountMessage, setDiscountMessage] = useState("")
   const [discountPercentage, setDiscountPercentage] = useState(0)
+  const [applyingDiscount, setApplyingDiscount] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -31,6 +35,30 @@ export default function CheckoutPage() {
     note: "",
   })
 
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await fetch("/api/products")
+        if (res.ok) {
+          const data = await res.json()
+          const transformed = data.map((p: Product) => ({
+            ...p,
+            pricePerDay: p.price_per_day,
+            pricePerTrip: p.price_per_trip,
+          }))
+          setProducts(transformed)
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
+
+  const getProduct = (productId: string) => products.find((p) => p.id === productId)
+
   const days = useMemo(() => {
     if (cart.rentalPeriod?.from && cart.rentalPeriod?.to) {
       return Math.max(1, differenceInCalendarDays(cart.rentalPeriod.to, cart.rentalPeriod.from))
@@ -39,39 +67,55 @@ export default function CheckoutPage() {
   }, [cart.rentalPeriod])
 
   const lines = cart.items.map((it) => {
-    const p = getProductById(it.productId)
-    const pricePerTrip = p?.pricePerTrip ?? 0
+    const p = getProduct(it.productId)
+    const pricePerTrip = p?.pricePerTrip ?? p?.price_per_trip ?? 0
     const name = p?.name ?? "Produk"
     const subtotal = pricePerTrip * it.quantity
     return { ...it, name, pricePerTrip, subtotal }
   })
+  
   const subtotal = lines.reduce((a, l) => a + l.subtotal, 0)
-  const discountAmount = calculateDiscount(subtotal, discountPercentage)
+  const discountAmount = Math.round((subtotal * discountPercentage) / 100)
   const total = subtotal - discountAmount
 
-  const handleApplyDiscount = () => {
-    const result = validateDiscountCode(discountCode)
-    if (result.valid) {
-      setDiscountPercentage(result.percentage)
-      setDiscountMessage(result.message)
-    } else {
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) {
+      setDiscountMessage("Masukkan kode diskon")
+      return
+    }
+
+    setApplyingDiscount(true)
+    try {
+      const res = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: discountCode }),
+      })
+      const result = await res.json()
+      
+      if (result.valid) {
+        setDiscountPercentage(result.percentage)
+        setDiscountMessage(result.message)
+      } else {
+        setDiscountPercentage(0)
+        setDiscountMessage(result.message)
+      }
+    } catch (error) {
+      console.error("Error validating discount:", error)
+      setDiscountMessage("Gagal memvalidasi kode diskon")
       setDiscountPercentage(0)
-      setDiscountMessage(result.message)
+    } finally {
+      setApplyingDiscount(false)
     }
   }
-
-  useEffect(() => {
-    if (cart.items.length === 0 || days <= 0) {
-      // Redirect if no items or dates not set
-      // Keep it silent
-    }
-  }, [cart.items.length, days])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (cart.items.length === 0 || days <= 0) return
 
-    // Store checkout data in sessionStorage for payment page
+    setSubmitting(true)
+
+    // Simpan data checkout sementara di sessionStorage agar bisa diakses halaman Pembayaran
     const checkoutData = {
       customer: {
         name: form.name,
@@ -100,7 +144,19 @@ export default function CheckoutPage() {
     }
 
     sessionStorage.setItem("gasoutdoor_checkout_data", JSON.stringify(checkoutData))
-    router.push("/payment")
+    router.push("/payment") // Pindah ke halaman pembayaran
+  }
+
+  if (loading) {
+    return (
+      <main>
+        <SiteHeader />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <SiteFooter />
+      </main>
+    )
   }
 
   return (
@@ -169,7 +225,8 @@ export default function CheckoutPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={cart.items.length === 0 || days <= 0}>
+              <Button type="submit" disabled={cart.items.length === 0 || days <= 0 || submitting}>
+                {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Lanjut ke Pembayaran
               </Button>
               <Button type="button" variant="outline" onClick={() => history.back()}>
@@ -222,11 +279,17 @@ export default function CheckoutPage() {
                 id="discount"
                 placeholder="Masukkan kode diskon"
                 value={discountCode}
-                onChange={(e) => setDiscountCode(e.target.value)}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
                 className="text-sm"
               />
-              <Button type="button" variant="outline" size="sm" onClick={handleApplyDiscount}>
-                Terapkan
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={handleApplyDiscount}
+                disabled={applyingDiscount}
+              >
+                {applyingDiscount ? <Loader2 className="h-4 w-4 animate-spin" /> : "Terapkan"}
               </Button>
             </div>
             {discountMessage && (

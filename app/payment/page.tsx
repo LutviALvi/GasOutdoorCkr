@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { createBooking } from "@/lib/booking"
 import { sendOrderToWhatsApp } from "@/lib/whatsapp-service"
 import { useCartStore } from "@/lib/cart-store"
-import { CreditCard, Wallet, Building2, Smartphone, CheckCircle2 } from "lucide-react"
+import { CreditCard, Wallet, Building2, Smartphone, CheckCircle2, Loader2 } from "lucide-react"
 
+// Interface data checkout yang disimpan di session storage
 interface CheckoutData {
   customer: {
     name: string
@@ -117,16 +118,19 @@ export default function PaymentPage() {
     }
   }, [router])
 
+  // Handle konfirmasi pembayaran dan pembuatan booking
   const handleSubmit = async () => {
     if (!checkoutData || !selectedMethod) return
     setSubmitting(true)
 
     try {
+      // Cari metode pembayaran yang dipilih
       const selectedPayment = paymentMethods.find((m) => m.id === selectedMethod)
       const paymentMethodName = selectedPayment?.name || selectedMethod
 
-      // Create booking with payment method
-      const bookingId = createBooking({
+      // Buat booking baru di database via Server Action / API
+      // ADDED await here
+      const bookingId = await createBooking({
         customer: checkoutData.customer,
         rentalPeriod: {
           from: new Date(checkoutData.rentalPeriod.from),
@@ -143,7 +147,7 @@ export default function PaymentPage() {
         paymentMethod: paymentMethodName,
       })
 
-      // Send to WhatsApp with payment method
+      // Kirim notifikasi pesanan ke WhatsApp Admin
       await sendOrderToWhatsApp({
         bookingId,
         customer: checkoutData.customer,
@@ -165,10 +169,13 @@ export default function PaymentPage() {
         paymentMethod: paymentMethodName,
       })
 
-      // Clear cart and checkout data
+      // Bersihkan keranjang belanja dan data checkout
       cart.clear()
       sessionStorage.removeItem("gasoutdoor_checkout_data")
       router.push(`/success?id=${encodeURIComponent(bookingId)}`)
+    } catch (err) {
+      console.error(err)
+      alert("Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.")
     } finally {
       setSubmitting(false)
     }
@@ -260,7 +267,14 @@ export default function PaymentPage() {
                   className="w-full bg-gradient-to-r from-primary to-secondary"
                   size="lg"
                 >
-                  {submitting ? "Memproses..." : "Buat Pesanan"}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    "Konfirmasi Pembayaran"
+                  )}
                 </Button>
                 <Button variant="outline" onClick={() => router.back()} className="w-full">
                   Kembali

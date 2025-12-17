@@ -6,32 +6,33 @@ import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useProductStore } from "@/lib/product-store"
-import { Edit2, Save, X, Upload, Plus, Search } from "lucide-react"
+import { Edit2, Save, X, Upload, Plus, Search, Trash2, Loader2 } from "lucide-react"
 import Image from "next/image"
-import { type Product, PRODUCTS } from "@/lib/products"
+import type { Product } from "@/lib/products"
 
 export default function ProductManagementPage() {
   const router = useRouter()
-  const { isLoggedIn, logout } = useAuthStore()
-  const [products, setProducts] = useState<Product[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editData, setEditData] = useState<Partial<Product>>({})
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
+  const { isLoggedIn } = useAuthStore()
+  const [products, setProducts] = useState<Product[]>([]) // State untuk menyimpan daftar produk
+  const [loading, setLoading] = useState(true) // Loading indikator saat ambil data
+  const [editingId, setEditingId] = useState<string | null>(null) // ID produk yang sedang diedit
+  const [editData, setEditData] = useState<Partial<Product>>({}) // Data sementara untuk form edit
+  const [imagePreview, setImagePreview] = useState<string | null>(null) // Preview gambar yang diupload
+  const [showAddForm, setShowAddForm] = useState(false) // Toggle form tambah produk
+  const [searchTerm, setSearchTerm] = useState("") // Keyword pencarian
+  const [saving, setSaving] = useState(false) // Loading indikator saat simpan data
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
+    slug: "",
     category: "Tenda",
     description: "",
-    pricePerDay: 0,
-    pricePerTrip: 0,
+    price_per_day: 0,
+    price_per_trip: 0,
     stock: 0,
     image: "",
   })
   const [newProductImage, setNewProductImage] = useState<string | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
-  const productStore = useProductStore()
 
   useEffect(() => {
     setIsHydrated(true)
@@ -40,43 +41,71 @@ export default function ProductManagementPage() {
   useEffect(() => {
     if (isHydrated && !isLoggedIn) {
       router.push("/admin/login")
+      return
+    }
+    if (isHydrated) {
+      fetchProducts()
     }
   }, [isHydrated, isLoggedIn, router])
 
-  useEffect(() => {
-    const stored = localStorage.getItem("gasoutdoor_products")
-    if (stored) {
-      try {
-        setProducts(JSON.parse(stored))
-      } catch {
-        setProducts(PRODUCTS)
+  // Fungsi untuk mengambil semua produk dari API
+  async function fetchProducts() {
+    try {
+      const res = await fetch("/api/products")
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data)
       }
-    } else {
-      setProducts(PRODUCTS)
-      localStorage.setItem("gasoutdoor_products", JSON.stringify(PRODUCTS))
+    } catch (error) {
+      console.error("Error fetching products:", error)
+    } finally {
+      setLoading(false)
     }
-  }, [])
-
-  const handleLogout = () => {
-    logout()
-    router.push("/admin/login")
   }
 
   const handleEdit = (product: Product) => {
     setEditingId(product.id)
-    setEditData(product)
+    setEditData({
+      ...product,
+      price_per_day: product.price_per_day || product.pricePerDay,
+      price_per_trip: product.price_per_trip || product.pricePerTrip,
+    })
     setImagePreview(product.image)
   }
 
-  const handleSave = () => {
+  // Simpan perubahan produk (Update ke Database)
+  const handleSave = async () => {
     if (!editingId) return
+    setSaving(true)
 
-    const updated = products.map((p) => (p.id === editingId ? { ...p, ...editData } : p))
-    setProducts(updated)
-    localStorage.setItem("gasoutdoor_products", JSON.stringify(updated))
-    setEditingId(null)
-    setEditData({})
-    setImagePreview(null)
+    try {
+      const res = await fetch(`/api/products/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editData.name,
+          slug: editData.slug,
+          category: editData.category,
+          description: editData.description,
+          pricePerDay: editData.price_per_day,
+          pricePerTrip: editData.price_per_trip,
+          stock: editData.stock,
+          image: editData.image,
+        }),
+      })
+
+      if (res.ok) {
+        await fetchProducts() // Refresh data setelah update
+        setEditingId(null)
+        setEditData({})
+        setImagePreview(null)
+      }
+    } catch (error) {
+      console.error("Error updating product:", error)
+      alert("Gagal menyimpan perubahan")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
@@ -85,6 +114,22 @@ export default function ProductManagementPage() {
     setImagePreview(null)
   }
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus produk ini?")) return
+
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        await fetchProducts()
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error)
+      alert("Gagal menghapus produk")
+    }
+  }
+
+  // Handle upload gambar produk (mengubah file jadi Base64 string untuk disimpan di text)
+  // Catatan: Idealnya upload ke Storage bucket (S3/Supabase Storage), tapi ini versi simpel simpan string base64.
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -111,55 +156,73 @@ export default function ProductManagementPage() {
     }
   }
 
-  const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.pricePerTrip || newProduct.stock === undefined) {
-      alert("Nama, harga, dan stok harus diisi")
+  const generateSlug = (name: string) => {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  }
+
+  const handleAddProduct = async () => {
+    if (!newProduct.name || !newProduct.price_per_trip) {
+      alert("Nama dan harga harus diisi")
       return
     }
 
-    const id = `prod-${Date.now()}`
-    const productToAdd: Product = {
-      id,
-      name: newProduct.name || "",
-      category: newProduct.category || "Tenda",
-      description: newProduct.description || "",
-      pricePerDay: newProduct.pricePerDay || 0,
-      pricePerTrip: newProduct.pricePerTrip || 0,
-      stock: newProduct.stock || 0,
-      image: newProduct.image || "/placeholder.svg",
+    setSaving(true)
+
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newProduct.name,
+          slug: newProduct.slug || generateSlug(newProduct.name || ""),
+          category: newProduct.category || "Tenda",
+          description: newProduct.description || "",
+          pricePerDay: newProduct.price_per_day || 0,
+          pricePerTrip: newProduct.price_per_trip || 0,
+          stock: newProduct.stock || 0,
+          image: newProduct.image || "/placeholder.svg",
+        }),
+      })
+
+      if (res.ok) {
+        await fetchProducts()
+        setNewProduct({
+          name: "",
+          slug: "",
+          category: "Tenda",
+          description: "",
+          price_per_day: 0,
+          price_per_trip: 0,
+          stock: 0,
+          image: "",
+        })
+        setNewProductImage(null)
+        setShowAddForm(false)
+      }
+    } catch (error) {
+      console.error("Error adding product:", error)
+      alert("Gagal menambahkan produk")
+    } finally {
+      setSaving(false)
     }
-
-    const updated = [...products, productToAdd]
-    setProducts(updated)
-    localStorage.setItem("gasoutdoor_products", JSON.stringify(updated))
-
-    setNewProduct({
-      name: "",
-      category: "Tenda",
-      description: "",
-      pricePerDay: 0,
-      pricePerTrip: 0,
-      stock: 0,
-      image: "",
-    })
-    setNewProductImage(null)
-    setShowAddForm(false)
-  }
-
-  const handleStockChange = (value: string) => {
-    const stock = Number.parseInt(value) || 0
-    setEditData({ ...editData, stock })
   }
 
   const filteredProducts = products.filter(
     (p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      p.category.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   if (!isHydrated || !isLoggedIn) {
     return null
+  }
+
+  if (loading) {
+    return (
+      <section className="flex-1 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </section>
+    )
   }
 
   return (
@@ -167,24 +230,22 @@ export default function ProductManagementPage() {
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Manajemen Produk</h1>
-          <p className="text-muted-foreground">Kelola stok dan gambar produk</p>
+          <p className="text-muted-foreground">Data dari database Supabase</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setShowAddForm(true)}
-            className="gap-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white hover:from-teal-700 hover:to-teal-800"
-          >
-            <Plus className="h-4 w-4" />
-            Tambah Produk
-          </Button>
-        </div>
+        <Button
+          onClick={() => setShowAddForm(true)}
+          className="gap-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white"
+        >
+          <Plus className="h-4 w-4" />
+          Tambah Produk
+        </Button>
       </div>
 
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Cari produk berdasarkan nama, kategori..."
+            placeholder="Cari produk..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -196,22 +257,20 @@ export default function ProductManagementPage() {
         <div className="mb-8 rounded-lg border bg-white p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Tambah Produk Baru</h2>
-            <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => setShowAddForm(false)}>
               <X className="h-5 w-5" />
             </button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Image Section */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold">Gambar Produk</label>
-              <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-dashed border-primary/30 bg-muted flex items-center justify-center">
+              <label className="text-sm font-semibold">Gambar</label>
+              <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-dashed">
                 {newProductImage ? (
-                  <Image src={newProductImage || "/placeholder.svg"} alt="New Product" fill className="object-cover" />
+                  <Image src={newProductImage} alt="New Product" fill className="object-cover" />
                 ) : (
-                  <div className="text-center">
-                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Klik untuk upload</p>
+                  <div className="flex items-center justify-center h-full">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
                   </div>
                 )}
               </div>
@@ -223,27 +282,22 @@ export default function ProductManagementPage() {
                 id="new-product-image"
               />
               <Button
-                asChild
                 variant="outline"
-                className="w-full bg-transparent"
+                className="w-full"
                 onClick={() => document.getElementById("new-product-image")?.click()}
               >
-                <label className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Pilih Gambar
-                </label>
+                <Upload className="h-4 w-4 mr-2" />
+                Pilih Gambar
               </Button>
             </div>
 
-            {/* Product Details */}
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-semibold">Nama Produk</label>
                 <Input
                   value={newProduct.name || ""}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value, slug: generateSlug(e.target.value) })}
                   className="mt-1"
-                  placeholder="Nama produk"
                 />
               </div>
               <div>
@@ -252,61 +306,46 @@ export default function ProductManagementPage() {
                   value={newProduct.category || ""}
                   onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
                   className="mt-1"
-                  placeholder="Kategori"
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold">Stok</label>
-                <Input
-                  type="number"
-                  value={newProduct.stock || 0}
-                  onChange={(e) => setNewProduct({ ...newProduct, stock: Number.parseInt(e.target.value) || 0 })}
-                  className="mt-1"
-                  min="0"
+                <label className="text-sm font-semibold">Deskripsi</label>
+                <textarea
+                  value={newProduct.description || ""}
+                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 border rounded-md text-sm min-h-[80px]"
+                  placeholder="Deskripsi produk..."
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            <div>
-              <label className="text-sm font-semibold">Harga/Hari</label>
-              <Input
-                type="number"
-                value={newProduct.pricePerDay || 0}
-                onChange={(e) => setNewProduct({ ...newProduct, pricePerDay: Number.parseInt(e.target.value) || 0 })}
-                className="mt-1"
-                min="0"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Harga/Trip</label>
-              <Input
-                type="number"
-                value={newProduct.pricePerTrip || 0}
-                onChange={(e) => setNewProduct({ ...newProduct, pricePerTrip: Number.parseInt(e.target.value) || 0 })}
-                className="mt-1"
-                min="0"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Deskripsi</label>
-              <Input
-                value={newProduct.description || ""}
-                onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                className="mt-1"
-                placeholder="Deskripsi produk"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-sm font-semibold">Harga/Trip</label>
+                  <Input
+                    type="number"
+                    value={newProduct.price_per_trip || 0}
+                    onChange={(e) => setNewProduct({ ...newProduct, price_per_trip: parseInt(e.target.value) || 0 })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold">Stok</label>
+                  <Input
+                    type="number"
+                    value={newProduct.stock || 0}
+                    onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) || 0 })}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={handleAddProduct} className="gap-2 bg-gradient-to-r from-primary to-secondary">
-              <Plus className="h-4 w-4" />
+            <Button onClick={handleAddProduct} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Tambah
             </Button>
-            <Button onClick={() => setShowAddForm(false)} variant="outline" className="gap-2 bg-transparent">
-              <X className="h-4 w-4" />
+            <Button onClick={() => setShowAddForm(false)} variant="outline">
               Batal
             </Button>
           </div>
@@ -316,7 +355,7 @@ export default function ProductManagementPage() {
       <div className="grid gap-6">
         {filteredProducts.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            {products.length === 0 ? "Belum ada produk" : "Tidak ada produk yang cocok dengan pencarian"}
+            {products.length === 0 ? "Belum ada produk di database" : "Tidak ada hasil"}
           </div>
         ) : (
           filteredProducts.map((product) => (
@@ -325,19 +364,13 @@ export default function ProductManagementPage() {
                 <div className="p-6 space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold">Gambar Produk</label>
-                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-dashed border-primary/30 bg-muted flex items-center justify-center">
+                      <label className="text-sm font-semibold">Gambar</label>
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-dashed">
                         {imagePreview ? (
-                          <Image
-                            src={imagePreview || "/placeholder.svg"}
-                            alt={editData.name || "Product"}
-                            fill
-                            className="object-cover"
-                          />
+                          <Image src={imagePreview} alt={editData.name || ""} fill className="object-cover" />
                         ) : (
-                          <div className="text-center">
-                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground">Klik untuk upload</p>
+                          <div className="flex items-center justify-center h-full">
+                            <Upload className="h-8 w-8 text-muted-foreground" />
                           </div>
                         )}
                       </div>
@@ -349,21 +382,17 @@ export default function ProductManagementPage() {
                         id={`image-${product.id}`}
                       />
                       <Button
-                        asChild
                         variant="outline"
-                        className="w-full bg-transparent"
+                        className="w-full"
                         onClick={() => document.getElementById(`image-${product.id}`)?.click()}
                       >
-                        <label className="cursor-pointer">
-                          <Upload className="h-4 w-4 mr-2" />
-                          Pilih Gambar
-                        </label>
+                        Pilih Gambar
                       </Button>
                     </div>
 
                     <div className="space-y-3">
                       <div>
-                        <label className="text-sm font-semibold">Nama Produk</label>
+                        <label className="text-sm font-semibold">Nama</label>
                         <Input
                           value={editData.name || ""}
                           onChange={(e) => setEditData({ ...editData, name: e.target.value })}
@@ -371,13 +400,22 @@ export default function ProductManagementPage() {
                         />
                       </div>
                       <div>
+                        {/* Description Field (Added as per request) */}
+                        <label className="text-sm font-semibold">Deskripsi</label>
+                        <textarea
+                          value={editData.description || ""}
+                          onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                          className="mt-1 w-full px-3 py-2 border rounded-md text-sm min-h-[80px]"
+                          placeholder="Deskripsi produk..."
+                        />
+                      </div>
+                      <div>
                         <label className="text-sm font-semibold">Stok</label>
                         <Input
                           type="number"
                           value={editData.stock || 0}
-                          onChange={(e) => handleStockChange(e.target.value)}
+                          onChange={(e) => setEditData({ ...editData, stock: parseInt(e.target.value) || 0 })}
                           className="mt-1"
-                          min="0"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -385,24 +423,18 @@ export default function ProductManagementPage() {
                           <label className="text-sm font-semibold">Harga/Hari</label>
                           <Input
                             type="number"
-                            value={editData.pricePerDay || 0}
-                            onChange={(e) =>
-                              setEditData({ ...editData, pricePerDay: Number.parseInt(e.target.value) || 0 })
-                            }
+                            value={editData.price_per_day || 0}
+                            onChange={(e) => setEditData({ ...editData, price_per_day: parseInt(e.target.value) || 0 })}
                             className="mt-1"
-                            min="0"
                           />
                         </div>
                         <div>
                           <label className="text-sm font-semibold">Harga/Trip</label>
                           <Input
                             type="number"
-                            value={editData.pricePerTrip || 0}
-                            onChange={(e) =>
-                              setEditData({ ...editData, pricePerTrip: Number.parseInt(e.target.value) || 0 })
-                            }
+                            value={editData.price_per_trip || 0}
+                            onChange={(e) => setEditData({ ...editData, price_per_trip: parseInt(e.target.value) || 0 })}
                             className="mt-1"
-                            min="0"
                           />
                         </div>
                       </div>
@@ -410,18 +442,20 @@ export default function ProductManagementPage() {
                   </div>
 
                   <div className="flex gap-2 pt-4 border-t">
-                    <Button onClick={handleSave} className="gap-2 bg-gradient-to-r from-primary to-secondary">
-                      <Save className="h-4 w-4" />
+                    <Button onClick={handleSave} disabled={saving} className="gap-2">
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Simpan
                     </Button>
-                    <Button onClick={handleCancel} variant="outline" className="gap-2 bg-transparent">
-                      <X className="h-4 w-4" />
+                    <Button onClick={handleCancel} variant="outline">
+                      <X className="h-4 w-4 mr-2" />
                       Batal
                     </Button>
                   </div>
                 </div>
               ) : (
+                // View Mode: Displays product details
                 <div className="p-6 flex flex-col md:flex-row gap-6">
+                  {/* ... view mode content ... */}
                   <div className="w-full md:w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                     <Image
                       src={product.image || "/placeholder.svg"}
@@ -438,32 +472,39 @@ export default function ProductManagementPage() {
                         <h3 className="text-lg font-semibold">{product.name}</h3>
                         <p className="text-sm text-muted-foreground">{product.category}</p>
                       </div>
-                      <Button onClick={() => handleEdit(product)} variant="outline" size="sm" className="gap-2">
-                        <Edit2 className="h-4 w-4" />
-                        Edit
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button onClick={() => handleEdit(product)} variant="outline" size="sm">
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button onClick={() => handleDelete(product.id)} variant="destructive" size="sm" className="text-white">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Product Stats */}
                       <div>
                         <p className="text-xs text-muted-foreground">Stok</p>
                         <p className="text-xl font-bold text-primary">{product.stock}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Harga/Hari</p>
-                        <p className="text-sm font-semibold">Rp{product.pricePerDay.toLocaleString("id-ID")}</p>
+                        <p className="text-sm font-semibold">
+                          Rp{(product.price_per_day || product.pricePerDay || 0).toLocaleString("id-ID")}
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Harga/Trip</p>
-                        <p className="text-sm font-semibold">Rp{product.pricePerTrip.toLocaleString("id-ID")}</p>
+                        <p className="text-sm font-semibold">
+                          Rp{(product.price_per_trip || product.pricePerTrip || 0).toLocaleString("id-ID")}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">ID Produk</p>
-                        <p className="text-sm font-mono">{product.id}</p>
+                        <p className="text-xs text-muted-foreground">ID</p>
+                        <p className="text-xs font-mono truncate">{product.id.slice(0, 8)}...</p>
                       </div>
                     </div>
-
-                    <p className="text-sm text-muted-foreground mt-4 line-clamp-2">{product.description}</p>
                   </div>
                 </div>
               )}
@@ -471,11 +512,6 @@ export default function ProductManagementPage() {
           ))
         )}
       </div>
-
-      <p className="text-xs text-muted-foreground mt-8">
-        Catatan: Data produk disimpan di localStorage. Untuk produksi, hubungkan dengan database dan tambahkan
-        autentikasi admin.
-      </p>
     </section>
   )
 }

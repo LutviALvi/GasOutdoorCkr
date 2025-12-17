@@ -11,6 +11,7 @@ export default function SiteFooter() {
 						<div className="space-y-4">
 							<div className="font-bold text-2xl bg-gradient-to-r from-brand-orange to-brand-coral bg-clip-text text-transparent">GASOUTDOOR.CKR</div>
 							<p className="text-white/80 leading-relaxed max-w-md">
+								{/* Deskripsi Singkat Website */}
 								Penyewaan perlengkapan outdoor terpercaya di Cikarang. Kami menyediakan gear berkualitas untuk petualangan outdoor Anda dengan harga terjangkau dan pelayanan terbaik.
 							</p>
 						</div>
@@ -37,6 +38,7 @@ export default function SiteFooter() {
 
 					<div className="space-y-6">
 						<div className="font-semibold text-lg text-brand-orange">Menu</div>
+						{/* Link navigasi cepat di footer */}
 						<ul className="space-y-3">
 							<li>
 								<Link className="text-white/80 hover:text-brand-mint transition-colors" href="/products">

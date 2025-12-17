@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/lib/auth-store"
-import type { Booking } from "@/lib/booking"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,56 +11,81 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Package, ShoppingCart, DollarSign, Users, Eye, TrendingUp } from "lucide-react"
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
 import { id as localeID } from "date-fns/locale"
-import { useProductStore, getProductsWithStore } from "@/lib/product-store"
+
+// Definisi tipe data yang sesuai dengan respon API
+// Tipe ini memastikan kita tahu bentuk data 'AdminOrder' yang diterima
+type AdminOrder = {
+  id: string
+  order_number: string
+  customer_name: string
+  customer_phone: string
+  total: number
+  booking_status: string
+  created_at: string
+  start_date: string
+  end_date: string
+  booking_items: any[]
+}
 
 export default function AdminDashboard() {
   const router = useRouter()
   const { isLoggedIn } = useAuthStore()
-  const [bookings, setBookings] = useState<Booking[]>([])
-  const [isHydrated, setIsHydrated] = useState(false)
-  const { products: storedProducts } = useProductStore()
+  const [orders, setOrders] = useState<AdminOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [totalProducts, setTotalProducts] = useState(0)
 
   useEffect(() => {
-    setIsHydrated(true)
-  }, [])
-
-  useEffect(() => {
-    if (isHydrated && !isLoggedIn) {
+    if (!isLoggedIn) {
       router.push("/admin/login")
+      return
     }
-  }, [isHydrated, isLoggedIn, router])
 
-  useEffect(() => {
-    const raw = localStorage.getItem("gasoutdoor_bookings")
-    if (raw) {
-      try {
-        setBookings(JSON.parse(raw))
-      } catch {
-        setBookings([])
-      }
+    async function fetchData() {
+       try {
+           // Mengambil Data Pesanan dari API
+           const resOrders = await fetch('/api/admin/orders', { cache: "no-store" })
+           if (resOrders.ok) {
+               const data = await resOrders.json()
+               setOrders(data)
+           }
+
+           // Mengambil Statistik Dashboard (untuk jumlah produk)
+           // Ini terpisah dari pesanan karena data produk ada di tabel berbeda
+           const resStats = await fetch('/api/admin/dashboard', { cache: "no-store" })
+           if (resStats.ok) {
+               const stats = await resStats.json()
+               setTotalProducts(stats.totalProducts)
+           }
+
+       } catch (err) {
+           console.error(err)
+       } finally {
+           setLoading(false)
+       }
     }
-  }, [])
+    fetchData()
 
-  if (!isHydrated || !isLoggedIn) {
-    return null
+  }, [isLoggedIn, router])
+
+  if (loading) {
+      return <div className="p-8 text-center">Loading dashboard data...</div>
   }
 
-  const products = getProductsWithStore(storedProducts)
+  // Calculate stats from Orders
+  // Active = confirmed or active
+  const activeOrders = orders.filter(o => ['confirmed', 'active'].includes(o.booking_status)).length
+  const totalRevenue = orders
+    .filter(o => o.booking_status !== 'cancelled')
+    .reduce((sum, o) => sum + (o.total || 0), 0)
 
-  // Calculate stats
-  const totalAlat = products.length
-  const alatTersedia = products.filter((p) => p.stock > 0).length
-  const transaksiAktif = bookings.filter((b) => b.status === "aktif" || b.status === "menunggu").length
-  const totalPendapatan = bookings.reduce((sum, b) => sum + (b.total || 0), 0)
-
-  // Calculate monthly data for last 6 months
+  // Hitung data bulanan untuk grafik 6 bulan terakhir
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
     const date = subMonths(new Date(), 5 - i)
     const monthStart = startOfMonth(date)
     const monthEnd = endOfMonth(date)
 
-    const monthBookings = bookings.filter((b) => {
-      const bookingDate = new Date(b.createdAt)
+    const monthBookings = orders.filter((b) => {
+      const bookingDate = new Date(b.created_at)
       return isWithinInterval(bookingDate, { start: monthStart, end: monthEnd })
     })
 
@@ -72,36 +96,36 @@ export default function AdminDashboard() {
     }
   })
 
-  // Calculate this month's revenue
+  // Hitung pendapatan bulan ini saja
   const thisMonthStart = startOfMonth(new Date())
   const thisMonthEnd = endOfMonth(new Date())
-  const pendapatanBulanIni = bookings
+  const revenueThisMonth = orders
     .filter((b) => {
-      const bookingDate = new Date(b.createdAt)
-      return isWithinInterval(bookingDate, { start: thisMonthStart, end: thisMonthEnd })
+      const bookingDate = new Date(b.created_at)
+      return isWithinInterval(bookingDate, { start: thisMonthStart, end: thisMonthEnd }) && b.booking_status !== 'cancelled'
     })
     .reduce((sum, b) => sum + (b.total || 0), 0)
 
-  // Get unique customers count
-  const uniqueCustomers = new Set(bookings.map((b) => b.customer.phone)).size
+  // Unique customers
+  const uniqueCustomers = new Set(orders.map((b) => b.customer_phone)).size
 
-  // Get recent rentals (last 5)
-  const recentRentals = bookings
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
+  // Recent rentals (already sorted by API desc)
+  const recentRentals = orders.slice(0, 5)
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "aktif":
+      case "active":
         return <Badge className="bg-green-100 text-green-800">Aktif</Badge>
-      case "selesai":
+      case "completed":
         return <Badge variant="secondary">Selesai</Badge>
-      case "menunggu":
-        return <Badge variant="outline">Menunggu</Badge>
-      case "dibatalkan":
+      case "confirmed":
+        return <Badge className="bg-blue-100 text-blue-800">Dikonfirmasi</Badge>
+        case "pending":
+            return <Badge variant="outline">Menunggu</Badge>
+      case "cancelled":
         return <Badge className="bg-red-100 text-red-800">Dibatalkan</Badge>
       default:
-        return <Badge>{status || "Menunggu"}</Badge>
+        return <Badge>{status}</Badge>
     }
   }
 
@@ -109,7 +133,7 @@ export default function AdminDashboard() {
     <div className="p-4 md:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard Admin</h1>
-        <p className="text-muted-foreground">Ringkasan aktivitas penyewaan alat outdoor</p>
+        <p className="text-muted-foreground">Ringkasan aktivitas penyewaan alat outdoor (Database)</p>
       </div>
 
       {/* Stats Cards */}
@@ -120,8 +144,8 @@ export default function AdminDashboard() {
             <Package className="h-4 w-4 text-teal-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-teal-800">{totalAlat}</div>
-            <p className="text-xs text-teal-600">{alatTersedia} tersedia</p>
+            <div className="text-2xl font-bold text-teal-800">{totalProducts}</div>
+            <p className="text-xs text-teal-600">Total SKU produk</p>
           </CardContent>
         </Card>
 
@@ -131,8 +155,8 @@ export default function AdminDashboard() {
             <ShoppingCart className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-800">{transaksiAktif}</div>
-            <p className="text-xs text-orange-600">Sedang berlangsung</p>
+            <div className="text-2xl font-bold text-orange-800">{activeOrders}</div>
+            <p className="text-xs text-orange-600">Sedang berlangsung / Dikonfirmasi</p>
           </CardContent>
         </Card>
 
@@ -143,10 +167,10 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl md:text-2xl font-bold text-emerald-800">
-              Rp{(pendapatanBulanIni / 1000000).toFixed(1)}M
+              Rp{(revenueThisMonth / 1000000).toFixed(1)}M
             </div>
             <p className="text-xs text-emerald-600 flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" /> +12% dari bulan lalu
+              <TrendingUp className="h-3 w-3" /> Realtime DB
             </p>
           </CardContent>
         </Card>
@@ -229,23 +253,23 @@ export default function AdminDashboard() {
                   <div className="flex-1">
                     <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                       <div>
-                        <p className="font-medium">{rental.customer.name}</p>
+                        <p className="font-medium">{rental.customer_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {rental.items.length} item{rental.items.length > 1 ? "s" : ""}
+                          {rental.booking_items ? rental.booking_items.length : 0} item
                         </p>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {format(new Date(rental.rentalPeriod.from), "d MMM", { locale: localeID })} -{" "}
-                        {format(new Date(rental.rentalPeriod.to), "d MMM yyyy", { locale: localeID })}
+                        {format(new Date(rental.start_date), "d MMM", { locale: localeID })} -{" "}
+                        {format(new Date(rental.end_date), "d MMM yyyy", { locale: localeID })}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between md:justify-end gap-4">
                     <div className="text-right">
                       <p className="font-medium">Rp {(rental.total || 0).toLocaleString("id-ID")}</p>
-                      <p className="text-xs text-muted-foreground">#{rental.id.slice(-6)}</p>
+                      <p className="text-xs text-muted-foreground">{rental.order_number}</p>
                     </div>
-                    {getStatusBadge(rental.status || "menunggu")}
+                    {getStatusBadge(rental.booking_status)}
                   </div>
                 </div>
               ))}

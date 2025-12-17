@@ -3,14 +3,22 @@ import { persist } from "zustand/middleware"
 import { type Product, PRODUCTS } from "./products"
 
 interface ProductStore {
+  // Daftar semua produk yang ada di store
   products: Product[]
+  // Fungsi untuk memperbarui jumlah stok produk
   updateStock: (productId: string, newStock: number) => void
+  // Fungsi untuk memperbarui gambar produk
   updateImage: (productId: string, newImage: string) => void
+  // Fungsi untuk memperbarui detail produk lainnya
   updateProduct: (productId: string, updates: Partial<Product>) => void
+  // Fungsi untuk menambahkan produk baru ke dalam store
   addProduct: (product: Product) => void
+  // Fungsi untuk mendapatkan semua produk
   getProducts: () => Product[]
 }
 
+// Hook utama untuk mengakses store produk
+// Menggunakan Zustand untuk state management dan persist agar data tersimpan di localStorage browser
 export const useProductStore = create<ProductStore>()(
   persist(
     (set, get) => ({
@@ -43,22 +51,24 @@ export const useProductStore = create<ProductStore>()(
   ),
 )
 
+// Menggabungkan produk default dengan produk yang tersimpan di store
+// Fungsi ini berguna untuk memastikan data produk yang ditampilkan adalah yang paling update (termasuk yang baru diedit/ditambah)
 export function getProductsWithStore(storedProducts: Product[]): Product[] {
-  // Start with default products
+  // Mulai dengan map kosong untuk produk
   const productsMap = new Map<string, Product>()
 
-  // Add all default products
+  // Tambahkan semua produk default/awal ke dalam map
   PRODUCTS.forEach((p) => {
     productsMap.set(p.id, { ...p })
   })
 
-  // Override with stored product updates
+  // Timpa dengan update produk yang tersimpan di localStorage
   storedProducts.forEach((p) => {
     if (productsMap.has(p.id)) {
-      // Merge stored updates with default product
+      // Gabungkan update yang tersimpan dengan produk default
       productsMap.set(p.id, { ...productsMap.get(p.id)!, ...p })
     } else {
-      // Add new products that were created in admin
+      // Tambahkan produk baru yang dibuat di halaman admin (tidak ada di default)
       productsMap.set(p.id, p)
     }
   })

@@ -6,41 +6,99 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getProductById } from '@/lib/products';
+import type { Product } from '@/lib/products';
 import { useCartStore } from '@/lib/cart-store';
 import { DateRangePicker } from '@/components/date-range-picker';
-import { Trash2, AlertCircle } from 'lucide-react';
+import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getBookingDaysCount, getBookingErrorMessage } from '@/lib/booking-utils';
+import { useEffect, useState } from 'react';
 
 export default function CartPage() {
 	const { items, rentalPeriod, setRentalPeriod, setQuantity, removeItem, clear } = useCartStore();
+	const [products, setProducts] = useState<Product[]>([]);
+	const [loading, setLoading] = useState(true);
 
+	useEffect(() => {
+		async function fetchProducts() {
+			setLoading(true);
+			try {
+				let url = '/api/products';
+				if (rentalPeriod?.from && rentalPeriod?.to) {
+					const start = new Date(rentalPeriod.from).toISOString();
+					const end = new Date(rentalPeriod.to).toISOString();
+					url += `?startDate=${start}&endDate=${end}`;
+				}
+
+				const res = await fetch(url);
+				if (res.ok) {
+					const data = await res.json();
+					const transformed = data.map((p: Product) => ({
+						...p,
+						pricePerDay: p.price_per_day,
+						pricePerTrip: p.price_per_trip,
+					}));
+					setProducts(transformed);
+				}
+			} catch (error) {
+				console.error('Error fetching products:', error);
+			} finally {
+				setLoading(false);
+			}
+		}
+		// Ambil ulang data produk saat periode sewa berubah
+		// Ini penting untuk mengecek ketersediaan stok di tanggal tersebut
+		fetchProducts();
+	}, [rentalPeriod]);
+
+	const getProduct = (productId: string) => products.find((p) => p.id === productId);
+
+	// Hitung durasi sewa
 	const bookingDays = rentalPeriod?.from && rentalPeriod?.to ? getBookingDaysCount(rentalPeriod.from, rentalPeriod.to) : 0;
+	// Cek apakah ada barang yang melebihi stok tersedia
+	const hasStockIssues = items.some(it => {
+		const p = getProduct(it.productId);
+		return !p || it.quantity > p.stock;
+	});
 
 	const lineItems = items.map((it) => {
-		const p = getProductById(it.productId);
-		const pricePerTrip = p?.pricePerTrip ?? 0;
+		const p = getProduct(it.productId);
+		const pricePerTrip = p?.pricePerTrip ?? p?.price_per_trip ?? 0;
 		const name = p?.name ?? 'Produk';
-		const image = p?.image ?? '/placeholder.svg?height=480&width=640';
+		const image = p?.image ?? '/placeholder.svg';
 		const stock = p?.stock ?? 0;
 		const subtotal = pricePerTrip * it.quantity;
-		return { ...it, name, image, pricePerTrip, stock, subtotal };
+		// Tandai jika stok tidak cukup (Overbooked)
+		const isOutOfStock = it.quantity > stock;
+		
+		return { ...it, name, image, pricePerTrip, stock, subtotal, isOutOfStock };
 	});
 
 	const total = lineItems.reduce((acc, li) => acc + li.subtotal, 0);
 	const bookingError = rentalPeriod?.from && rentalPeriod?.to ? getBookingErrorMessage(rentalPeriod.from, rentalPeriod.to) : null;
 
+	if (loading) {
+		return (
+			<main className="overflow-x-hidden">
+				<SiteHeader />
+				<div className="flex items-center justify-center min-h-[400px]">
+					<Loader2 className="h-8 w-8 animate-spin text-primary" />
+				</div>
+				<SiteFooter />
+			</main>
+		);
+	}
+
 	return (
-		<main>
+		<main className="overflow-x-hidden">
 			<SiteHeader />
-			<section className="mx-auto max-w-6xl px-4 py-8 grid gap-8 lg:grid-cols-[1fr_380px]">
+			<section className="mx-auto max-w-6xl px-4 py-8 pt-20 grid gap-8 lg:grid-cols-[1fr_380px]">
 				<div className="grid gap-6">
 					<h1 className="text-2xl font-bold">Keranjang</h1>
 					<div className="grid gap-2">
 						<span className="text-sm font-medium">Tanggal Sewa (Jumat, Sabtu, Minggu)</span>
 						<DateRangePicker value={rentalPeriod} onChange={setRentalPeriod} />
-						<p className="text-xs text-muted-foreground">Booking hanya tersedia untuk Jumat, Sabtu, dan Minggu. Hari pengembalian tidak dihitung (exclusive).</p>
+						<p className="text-xs text-muted-foreground">Booking mulai hari Jumat, Sabtu, atau Minggu. Maks 4 hari.</p>
 					</div>
 
 					{bookingError && (
@@ -60,13 +118,19 @@ export default function CartPage() {
 					) : (
 						<ul className="grid gap-4">
 							{lineItems.map((li) => (
-								<li key={li.productId} className="flex gap-4 border rounded-lg p-3">
-									<div className="relative w-28 h-20 rounded-md overflow-hidden border">
+								// Cart Item Component: Displays product details, price, and quantity controls
+								<li key={li.productId} className="flex flex-col sm:flex-row gap-4 border rounded-lg p-3">
+									{/* Product Image */}
+									<div className="relative w-full sm:w-28 h-40 sm:h-20 rounded-md overflow-hidden border">
 										<Image src={li.image || '/placeholder.svg'} alt={li.name} fill className="object-cover" />
 									</div>
+									
+									{/* Product Details & Quantity */}
 									<div className="flex-1 grid gap-1">
 										<div className="font-semibold">{li.name}</div>
 										<div className="text-sm text-muted-foreground">Rp{li.pricePerTrip.toLocaleString('id-ID')} / trip</div>
+										
+										{/* Quantity Control: Update quantity with validation */}
 										<div className="flex items-center gap-2 mt-2">
 											<span className="text-sm">Qty:</span>
 											<Input
@@ -80,12 +144,14 @@ export default function CartPage() {
 													setQuantity(li.productId, Math.min(Math.max(1, val), li.stock));
 												}}
 											/>
-											<Button size="icon" variant="ghost" className="ml-auto" onClick={() => removeItem(li.productId)} aria-label={`Hapus ${li.name}`}>
+											<Button size="icon" variant="ghost" className="ml-auto sm:ml-4" onClick={() => removeItem(li.productId)} aria-label={`Hapus ${li.name}`}>
 												<Trash2 className="h-4 w-4" />
 											</Button>
 										</div>
 									</div>
-									<div className="min-w-[120px] text-right">
+
+									{/* Subtotal Display */}
+									<div className="w-full sm:min-w-[120px] sm:text-right flex flex-row sm:flex-col justify-between sm:justify-start items-center sm:items-end mt-2 sm:mt-0 border-t sm:border-t-0 pt-2 sm:pt-0">
 										<div className="text-sm text-muted-foreground">Subtotal</div>
 										<div className="font-semibold">Rp{li.subtotal.toLocaleString('id-ID')}</div>
 									</div>
@@ -98,9 +164,6 @@ export default function CartPage() {
 							<Button variant="outline" onClick={() => clear()}>
 								Kosongkan
 							</Button>
-							{/* <Button asChild disabled={!rentalPeriod?.from || !rentalPeriod?.to || !!bookingError}>
-                <Link href="/checkout">Lanjut Checkout</Link>
-              </Button> */}
 						</div>
 					) : null}
 				</div>
@@ -121,7 +184,7 @@ export default function CartPage() {
 							disabled={lineItems.length === 0 || bookingDays <= 0 || !!bookingError}>
 							<Link href="/checkout">Checkout</Link>
 						</Button>
-						<p className="text-xs text-muted-foreground">Harga belum termasuk deposit/ongkir (jika ada). Ketentuan lengkap akan dikonfirmasi via WhatsApp.</p>
+						<p className="text-xs text-muted-foreground">Harga belum termasuk deposit/ongkir (jika ada).</p>
 					</div>
 				</aside>
 			</section>

@@ -10,13 +10,13 @@ type CartItem = {
 }
 
 type CartState = {
-  items: CartItem[]
-  rentalPeriod?: DateRange
-  addItem: (productId: string, qty?: number) => void
-  removeItem: (productId: string) => void
-  setQuantity: (productId: string, quantity: number) => void
-  setRentalPeriod: (range: DateRange | undefined) => void
-  clear: () => void
+  items: CartItem[] // Daftar barang di keranjang
+  rentalPeriod?: DateRange // Tanggal sewa yang dipilih
+  addItem: (productId: string, qty?: number) => void // Fungsi tambah barang
+  removeItem: (productId: string) => void // Fungsi hapus barang
+  setQuantity: (productId: string, quantity: number) => void // Fungsi ubah jumlah barang
+  setRentalPeriod: (range: DateRange | undefined) => void // Fungsi atur tanggal sewa
+  clear: () => void // Fungsi kosongkan keranjang
 }
 
 export const useCartStore = create<CartState>()(
@@ -26,12 +26,15 @@ export const useCartStore = create<CartState>()(
       rentalPeriod: undefined,
       addItem: (productId, qty = 1) =>
         set((state) => {
+          // Cari apakah barang sudah ada di keranjang
           const idx = state.items.findIndex((i) => i.productId === productId)
           if (idx >= 0) {
+            // Jika ada, tambahkan jumlahnya saja
             const items = [...state.items]
             items[idx] = { ...items[idx], quantity: items[idx].quantity + qty }
             return { items }
           }
+          // Jika belum ada, masukkan sebagai item baru
           return { items: [...state.items, { productId, quantity: qty }] }
         }),
       removeItem: (productId) =>
@@ -46,8 +49,9 @@ export const useCartStore = create<CartState>()(
       clear: () => set({ items: [], rentalPeriod: undefined }),
     }),
     {
-      name: "gasoutdoor_cart",
+      name: "gasoutdoor_cart", // Nama key di LocalStorage browser
       storage: createJSONStorage(() => localStorage),
+      // Hanya simpan items dan rentalPeriod agar tidak hilang saat refresh
       partialize: (s) => ({ items: s.items, rentalPeriod: s.rentalPeriod }),
     },
   ),

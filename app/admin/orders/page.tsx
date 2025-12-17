@@ -2,59 +2,110 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import type { Booking } from "@/lib/booking"
+import { useRouter } from "next/navigation"
+import { useAuthStore } from "@/lib/auth-store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Eye, Phone, Calendar, DollarSign, Download, Trash2, Package, User } from "lucide-react"
+import { Search, Eye, Phone, Calendar, DollarSign, Download, Trash2, Package, User, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 import { id as localeID } from "date-fns/locale"
-import { useProductStore } from "@/lib/product-store"
-import { PRODUCTS } from "@/lib/products"
 
-type BookingStatus = "menunggu" | "aktif" | "selesai" | "dibatalkan"
+interface BookingItem {
+  id: string
+  product_id: string
+  quantity: number
+  price_per_trip: number
+  products?: {
+      name: string
+      image: string
+  }
+}
 
-interface BookingWithStatus extends Booking {
-  status?: BookingStatus
+// Interface untuk struktur data Booking
+interface BookingData {
+  id: string
+  order_number: string
+  customer_name: string
+  customer_phone: string
+  customer_email?: string
+  customer_address?: string
+  customer_identity?: string
+  start_date: string
+  end_date: string
+  total_days: number
+  subtotal: number
+  discount_code?: string
+  discount_amount: number
+  total: number
+  booking_status: string // confirmed, active, completed, cancelled, pending
+  booking_items: BookingItem[]
+  created_at: string
 }
 
 export default function AdminOrdersPage() {
+  const router = useRouter()
+  const { isLoggedIn } = useAuthStore()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedBooking, setSelectedBooking] = useState<BookingWithStatus | null>(null)
-  const [bookings, setBookings] = useState<BookingWithStatus[]>([])
-  const { products: storedProducts } = useProductStore()
-
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null)
+  const [bookings, setBookings] = useState<BookingData[]>([])
+  const [loading, setLoading] = useState(true)
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   useEffect(() => {
-    const raw = localStorage.getItem("gasoutdoor_bookings")
-    if (raw) {
-      try {
-        const data = JSON.parse(raw) as BookingWithStatus[]
-        const withStatus = data.map((b) => ({
-          ...b,
-          status: b.status || ("menunggu" as BookingStatus),
-        }))
-        setBookings(withStatus)
-      } catch {
-        setBookings([])
-      }
-    }
+    setIsHydrated(true)
   }, [])
 
-  const getStatusBadge = (status: BookingStatus) => {
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.push("/admin/login")
+      return
+    }
+    if (isHydrated) {
+      fetchData()
+    }
+  }, [isHydrated, isLoggedIn, router])
+
+  // Ambil data pesanan dari API
+  async function fetchData() {
+    try {
+      const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } })
+      if (res.ok) {
+        const bookingsData = await res.json()
+        setBookings(bookingsData)
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
+      case "confirmed":
+      case "dikonfirmasi":
+        return <Badge className="bg-blue-600 text-white">Dikonfirmasi</Badge>
+      case "active":
       case "aktif":
-        return <Badge className="bg-green-500 text-white">Aktif</Badge>
+        return <Badge className="bg-green-600 text-white">Aktif (Disewa)</Badge>
+      case "completed":
       case "selesai":
-        return <Badge className="bg-gray-500 text-white">Selesai</Badge>
+        return <Badge className="bg-gray-600 text-white">Selesai</Badge>
+      case "pending":
       case "menunggu":
         return <Badge className="bg-amber-500 text-white">Menunggu</Badge>
+      case "cancelled":
       case "dibatalkan":
         return <Badge className="bg-red-500 text-white">Dibatalkan</Badge>
       default:
@@ -62,78 +113,109 @@ export default function AdminOrdersPage() {
     }
   }
 
+  // Filter data booking client-side berdasarkan search term, status, dan tanggal
   const filteredBookings = bookings.filter((booking) => {
+    const term = searchTerm.toLowerCase()
     const matchesSearch =
-      booking.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.customer.phone.includes(searchTerm) ||
-      booking.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || booking.status === statusFilter
+      booking.customer_name.toLowerCase().includes(term) ||
+      booking.customer_phone.includes(term) ||
+      (booking.order_number && booking.order_number.toLowerCase().includes(term)) ||
+      booking.id.toLowerCase().includes(term)
+    
+    // Normalize status for filtering
+    const normalizedStatus = booking.booking_status === 'aktif' ? 'active' : 
+                             booking.booking_status === 'dikonfirmasi' ? 'confirmed' :
+                             booking.booking_status === 'menunggu' ? 'pending' : 
+                             booking.booking_status === 'selesai' ? 'completed' : 
+                             booking.booking_status
+
+    const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter
 
     let matchesDate = true
     if (dateFrom) {
       const filterFrom = new Date(dateFrom)
-      const bookingFrom = new Date(booking.rentalPeriod.from)
+      const bookingFrom = new Date(booking.start_date)
       matchesDate = matchesDate && bookingFrom >= filterFrom
     }
     if (dateTo) {
       const filterTo = new Date(dateTo)
-      const bookingTo = new Date(booking.rentalPeriod.to)
+      const bookingTo = new Date(booking.end_date)
       matchesDate = matchesDate && bookingTo <= filterTo
     }
 
     return matchesSearch && matchesStatus && matchesDate
   })
 
-  const handleStatusUpdate = (bookingId: string, newStatus: string) => {
-    const updated = bookings.map((booking) =>
-      booking.id === bookingId ? { ...booking, status: newStatus as BookingStatus } : booking,
-    )
-    setBookings(updated)
-    localStorage.setItem("gasoutdoor_bookings", JSON.stringify(updated))
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage)
+  const paginatedBookings = filteredBookings.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  const handlePageChange = (newPage: number) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+          setCurrentPage(newPage)
+      }
   }
 
-  const deleteBooking = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus booking ini?")) {
-      const updated = bookings.filter((b) => b.id !== id)
-      setBookings(updated)
-      localStorage.setItem("gasoutdoor_bookings", JSON.stringify(updated))
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, dateFrom, dateTo])
+
+
+  const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
+    const previous = [...bookings]
+    setBookings(bookings.map(b => b.id === bookingId ? { ...b, booking_status: newStatus } : b))
+
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingStatus: newStatus }),
+      })
+
+      if (res.ok) {
+        // Success
+      } else {
+          setBookings(previous)
+          alert("Gagal mengupdate status")
+      }
+    } catch (error) {
+      console.error("Error updating status:", error)
+      setBookings(previous)
     }
   }
 
+  const deleteBooking = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus booking ini?")) return
+
+    try {
+      const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        await fetchData()
+      } else {
+        alert("Gagal menghapus booking")
+      }
+    } catch (error) {
+      console.error("Error deleting booking:", error)
+    }
+  }
+
+  // Export data tabel ke file CSV (Excel)
   const exportCsv = () => {
     const rows = [
-      [
-        "ID",
-        "Status",
-        "Nama",
-        "No. Identitas",
-        "Telepon",
-        "Email",
-        "Alamat",
-        "Tanggal dari",
-        "Tanggal ke",
-        "Subtotal (Rp)",
-        "Diskon (%)",
-        "Diskon (Rp)",
-        "Total (Rp)",
-        "Tanggal Pesanan",
-      ].join(","),
+      ["Order No", "Status", "Nama", "Telepon", "Tanggal Mulai", "Tanggal Selesai", "Total (Rp)"].join(","),
       ...filteredBookings.map((b) =>
         [
-          b.id,
-          b.status || "menunggu",
-          `"${b.customer.name}"`,
-          `"${b.customer.identityNumber || ""}"`,
-          `"${b.customer.phone}"`,
-          `"${b.customer.email || ""}"`,
-          `"${b.customer.address || ""}"`,
-          b.rentalPeriod.from,
-          b.rentalPeriod.to,
-          b.subtotal || b.total,
-          b.discountPercentage || 0,
-          b.discountAmount || 0,
+          b.order_number || b.id.slice(0,8),
+          b.booking_status,
+          `"${b.customer_name}"`,
+          `"${b.customer_phone}"`,
+          b.start_date,
+          b.end_date,
           b.total,
-          b.createdAt,
         ].join(","),
       ),
     ].join("\n")
@@ -146,28 +228,33 @@ export default function AdminOrdersPage() {
     URL.revokeObjectURL(url)
   }
 
-  const getProductName = (productId: string) => {
-    const stored = storedProducts.find((p) => p.id === productId)
-    if (stored) return stored.name
-    const original = PRODUCTS.find((p) => p.id === productId)
-    return original?.name || productId
-  }
-
   const clearDateFilter = () => {
     setDateFrom("")
     setDateTo("")
   }
 
+  if (!isHydrated || !isLoggedIn) return null
+
+  if (loading) {
+    return (
+      <section className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </section>
+    )
+  }
+
   const totalOrders = bookings.length
-  const activeOrders = bookings.filter((b) => b.status === "aktif").length
-  const pendingOrders = bookings.filter((b) => b.status === "menunggu").length
-  const totalRevenue = bookings.filter((b) => b.status !== "dibatalkan").reduce((acc, b) => acc + (b.total || 0), 0)
+  const activeOrders = bookings.filter((b) => ['active', 'aktif', 'confirmed', 'dikonfirmasi'].includes(b.booking_status)).length
+  const pendingOrders = bookings.filter((b) => ['pending', 'menunggu'].includes(b.booking_status)).length
+  const totalRevenue = bookings
+    .filter((b) => !['cancelled', 'dibatalkan'].includes(b.booking_status))
+    .reduce((acc, b) => acc + (b.total || 0), 0)
 
   return (
     <section className="p-4 md:p-6 lg:p-8">
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Manajemen Pesanan</h1>
-        <p className="text-muted-foreground text-sm md:text-base">Kelola semua transaksi penyewaan alat outdoor</p>
+        <p className="text-muted-foreground text-sm md:text-base">Data dari database Supabase</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
@@ -187,7 +274,7 @@ export default function AdminOrdersPage() {
             <div className="flex items-center gap-2 md:gap-3">
               <Calendar className="h-6 w-6 md:h-8 md:w-8 opacity-80" />
               <div>
-                <p className="text-xs md:text-sm opacity-80">Aktif</p>
+                <p className="text-xs md:text-sm opacity-80">Aktif/Konfirm</p>
                 <p className="text-xl md:text-2xl font-bold">{activeOrders}</p>
               </div>
             </div>
@@ -217,7 +304,6 @@ export default function AdminOrdersPage() {
         </Card>
       </div>
 
-      {/* Search and Filter */}
       <Card className="mb-6">
         <CardContent className="p-3 md:p-4">
           <div className="flex flex-col gap-3 md:gap-4">
@@ -237,10 +323,11 @@ export default function AdminOrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="menunggu">Menunggu</SelectItem>
-                  <SelectItem value="aktif">Aktif</SelectItem>
-                  <SelectItem value="selesai">Selesai</SelectItem>
-                  <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
+                  <SelectItem value="pending">Menunggu</SelectItem>
+                  <SelectItem value="confirmed">Dikonfirmasi</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="completed">Selesai</SelectItem>
+                  <SelectItem value="cancelled">Dibatalkan</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -256,21 +343,11 @@ export default function AdminOrdersPage() {
               </div>
               <div className="col-span-2 sm:col-span-1 flex gap-2">
                 {(dateFrom || dateTo) && (
-                  <Button
-                    variant="outline"
-                    onClick={clearDateFilter}
-                    size="sm"
-                    className="flex-1 sm:flex-none bg-transparent"
-                  >
+                  <Button variant="outline" onClick={clearDateFilter} size="sm" className="flex-1 sm:flex-none bg-transparent">
                     Reset
                   </Button>
                 )}
-                <Button
-                  onClick={exportCsv}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 sm:flex-none gap-1 bg-transparent"
-                >
+                <Button onClick={exportCsv} variant="outline" size="sm" className="flex-1 sm:flex-none gap-1 bg-transparent">
                   <Download className="h-4 w-4" />
                   <span className="hidden sm:inline">Export</span>
                 </Button>
@@ -281,65 +358,58 @@ export default function AdminOrdersPage() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2 md:pb-4">
+        <CardHeader className="pb-2 md:pb-4 flex flex-row items-center justify-between">
           <CardTitle className="text-base md:text-lg">Daftar Pesanan ({filteredBookings.length})</CardTitle>
+          <span className="text-sm text-muted-foreground">
+              Halaman {currentPage} dari {totalPages || 1}
+          </span>
         </CardHeader>
         <CardContent className="p-2 md:p-4">
           <div className="space-y-3">
-            {filteredBookings.map((booking) => (
+            {paginatedBookings.map((booking) => (
               <div key={booking.id} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
-                {/* Mobile-first layout */}
                 <div className="flex flex-col gap-3">
-                  {/* Header row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-1 md:gap-2 mb-1">
-                        <h3 className="font-semibold text-base md:text-lg truncate">{booking.customer.name}</h3>
-                        {getStatusBadge(booking.status || "menunggu")}
+                        <h3 className="font-semibold text-base md:text-lg truncate">{booking.customer_name}</h3>
+                        {getStatusBadge(booking.booking_status)}
                       </div>
-                      <p className="text-xs text-muted-foreground font-mono">#{booking.id.slice(-8)}</p>
+                      <p className="text-xs text-muted-foreground font-mono">#{booking.order_number || booking.id.slice(0, 8)}</p>
                     </div>
                     <p className="font-bold text-teal-600 text-sm md:text-base whitespace-nowrap">
                       Rp{(booking.total || 0).toLocaleString("id-ID")}
                     </p>
                   </div>
 
-                  {/* Info grid */}
                   <div className="grid grid-cols-2 gap-2 text-xs md:text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Phone className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
-                      <span className="truncate">{booking.customer.phone}</span>
+                      <span className="truncate">{booking.customer_phone}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
                       <span className="truncate">
-                        {format(new Date(booking.rentalPeriod.from), "d/M", { locale: localeID })} -{" "}
-                        {format(new Date(booking.rentalPeriod.to), "d/M", { locale: localeID })}
+                        {format(new Date(booking.start_date), "d/M", { locale: localeID })} -{" "}
+                        {format(new Date(booking.end_date), "d/M", { locale: localeID })}
                       </span>
                     </div>
                   </div>
 
-                  {/* Items */}
                   <div className="text-xs md:text-sm bg-muted/50 rounded p-2">
                     <span className="font-medium">Item: </span>
-                    {booking.items.map((item, idx) => (
+                    {booking.booking_items?.map((item, idx) => (
                       <span key={idx}>
-                        {getProductName(item.productId)} x{item.quantity}
-                        {idx < booking.items.length - 1 ? ", " : ""}
+                        {item.products?.name || "Produk"} x{item.quantity}
+                        {idx < (booking.booking_items?.length || 0) - 1 ? ", " : ""}
                       </span>
-                    ))}
+                    )) || "Tidak ada item"}
                   </div>
 
-                  {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t">
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedBooking(booking)}
-                          className="flex-1 sm:flex-none"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => setSelectedBooking(booking)} className="flex-1 sm:flex-none">
                           <Eye className="h-4 w-4 mr-1" />
                           Detail
                         </Button>
@@ -352,78 +422,32 @@ export default function AdminOrdersPage() {
                           <div className="space-y-4 text-sm">
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <Label className="text-xs font-medium text-muted-foreground">Nama</Label>
-                                <p className="font-semibold">{selectedBooking.customer.name}</p>
+                                <span className="text-xs font-medium text-muted-foreground">Nama</span>
+                                <p className="font-semibold">{selectedBooking.customer_name}</p>
                               </div>
                               <div>
-                                <Label className="text-xs font-medium text-muted-foreground">WhatsApp</Label>
-                                <p>{selectedBooking.customer.phone}</p>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">No. Identitas</Label>
-                                <p>{selectedBooking.customer.identityNumber || "-"}</p>
+                                <span className="text-xs font-medium text-muted-foreground">WhatsApp</span>
+                                <p>{selectedBooking.customer_phone}</p>
                               </div>
                               <div>
-                                <Label className="text-xs font-medium text-muted-foreground">Email</Label>
-                                <p className="truncate">{selectedBooking.customer.email || "-"}</p>
+                                <span className="text-xs font-medium text-muted-foreground">Order No</span>
+                                <p className="font-mono">{selectedBooking.order_number}</p>
                               </div>
                             </div>
                             <div>
-                              <Label className="text-xs font-medium text-muted-foreground">Alamat</Label>
-                              <p>{selectedBooking.customer.address || "-"}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">Tanggal Sewa</Label>
-                                <p>
-                                  {format(new Date(selectedBooking.rentalPeriod.from), "d MMM yyyy", {
-                                    locale: localeID,
-                                  })}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">Tanggal Kembali</Label>
-                                <p>
-                                  {format(new Date(selectedBooking.rentalPeriod.to), "d MMM yyyy", {
-                                    locale: localeID,
-                                  })}
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">Item Disewa</Label>
+                              <span className="text-xs font-medium text-muted-foreground">Item Disewa</span>
                               <div className="mt-1 space-y-1">
-                                {selectedBooking.items.map((item, idx) => (
+                                {selectedBooking.booking_items?.map((item, idx) => (
                                   <p key={idx}>
-                                    {getProductName(item.productId)} x{item.quantity} - Rp
-                                    {(item.pricePerDay * item.quantity).toLocaleString("id-ID")}
+                                    {item.products?.name || "Produk"} x{item.quantity} - Rp
+                                    {(item.price_per_trip * item.quantity).toLocaleString("id-ID")}
                                   </p>
                                 ))}
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">Subtotal</Label>
-                                <p>
-                                  Rp{(selectedBooking.subtotal || selectedBooking.total || 0).toLocaleString("id-ID")}
-                                </p>
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-muted-foreground">Diskon</Label>
-                                <p className="text-green-600">
-                                  {selectedBooking.discountCode
-                                    ? `-Rp${(selectedBooking.discountAmount || 0).toLocaleString("id-ID")} (${selectedBooking.discountCode})`
-                                    : "-"}
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              <Label className="text-xs font-medium text-muted-foreground">Total Pembayaran</Label>
-                              <p className="text-xl font-bold text-teal-600">
-                                Rp{(selectedBooking.total || 0).toLocaleString("id-ID")}
-                              </p>
+                            <div className="flex justify-between border-t pt-2 font-semibold">
+                              <span>Total</span>
+                              <span className="text-teal-600">Rp{(selectedBooking.total || 0).toLocaleString("id-ID")}</span>
                             </div>
                           </div>
                         )}
@@ -431,26 +455,22 @@ export default function AdminOrdersPage() {
                     </Dialog>
 
                     <Select
-                      value={booking.status || "menunggu"}
+                      value={booking.booking_status}
                       onValueChange={(value) => handleStatusUpdate(booking.id, value)}
                     >
-                      <SelectTrigger className="w-28 sm:w-32">
+                      <SelectTrigger className="w-32 sm:w-36">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="menunggu">Menunggu</SelectItem>
-                        <SelectItem value="aktif">Aktif</SelectItem>
-                        <SelectItem value="selesai">Selesai</SelectItem>
-                        <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
+                        <SelectItem value="pending">Menunggu</SelectItem>
+                        <SelectItem value="confirmed">Dikonfirmasi</SelectItem>
+                        <SelectItem value="active">Aktif</SelectItem>
+                        <SelectItem value="completed">Selesai</SelectItem>
+                        <SelectItem value="cancelled">Dibatalkan</SelectItem>
                       </SelectContent>
                     </Select>
 
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => deleteBooking(booking.id)}
-                      className="text-white"
-                    >
+                    <Button variant="destructive" size="sm" onClick={() => deleteBooking(booking.id)} className="text-white">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -459,21 +479,43 @@ export default function AdminOrdersPage() {
             ))}
           </div>
 
-          {filteredBookings.length === 0 && (
+          {paginatedBookings.length === 0 && (
             <div className="text-center py-8 md:py-12">
               <Package className="h-10 w-10 md:h-12 md:w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-base md:text-lg font-semibold mb-2">Tidak ada pesanan</h3>
               <p className="text-sm text-muted-foreground">
-                {bookings.length === 0 ? "Belum ada pesanan yang masuk" : "Coba ubah filter pencarian"}
+                {bookings.length === 0 ? "Belum ada pesanan di database" : "Coba ubah filter pencarian"}
               </p>
             </div>
           )}
+
+           {/* Pagination Controls */}
+           {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+                <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium">
+                    Halaman {currentPage} dari {totalPages}
+                </span>
+                <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+           )}
+
         </CardContent>
       </Card>
     </section>
   )
-}
-
-function Label({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <label className={`block ${className || ""}`}>{children}</label>
 }

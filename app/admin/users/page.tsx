@@ -5,110 +5,154 @@ import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit2, Save, X, Plus, LogOut, Trash2 } from "lucide-react"
+import { Edit2, Save, X, Plus, Trash2, Loader2 } from "lucide-react"
 
 interface AdminUser {
   id: string
   username: string
-  password: string
-  createdAt: string
+  created_at: string
+  updated_at?: string
 }
 
 export default function UsersPage() {
   const router = useRouter()
-  const { logout } = useAuthStore()
+  const { isLoggedIn } = useAuthStore()
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editData, setEditData] = useState<Partial<AdminUser>>({})
+  const [editData, setEditData] = useState<{ username: string; password: string }>({ username: "", password: "" })
   const [showAddForm, setShowAddForm] = useState(false)
   const [newUser, setNewUser] = useState({ username: "", password: "" })
+  const [saving, setSaving] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem("gasoutdoor_admin_users")
-    if (stored) {
-      try {
-        setUsers(JSON.parse(stored))
-      } catch {
-        const defaultUsers: AdminUser[] = [
-          {
-            id: "admin-1",
-            username: "admin",
-            password: "admin123",
-            createdAt: new Date().toISOString(),
-          },
-        ]
-        setUsers(defaultUsers)
-        localStorage.setItem("gasoutdoor_admin_users", JSON.stringify(defaultUsers))
-      }
-    } else {
-      const defaultUsers: AdminUser[] = [
-        {
-          id: "admin-1",
-          username: "admin",
-          password: "admin123",
-          createdAt: new Date().toISOString(),
-        },
-      ]
-      setUsers(defaultUsers)
-      localStorage.setItem("gasoutdoor_admin_users", JSON.stringify(defaultUsers))
-    }
+    setIsHydrated(true)
   }, [])
 
-  const handleLogout = () => {
-    logout()
-    router.push("/admin/login")
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.push("/admin/login")
+      return
+    }
+    if (isHydrated) {
+      fetchUsers()
+    }
+  }, [isHydrated, isLoggedIn, router])
+
+  // Ambil daftar user admin dari API
+  async function fetchUsers() {
+    try {
+      const res = await fetch("/api/admin/users")
+      if (res.ok) {
+        const data = await res.json()
+        setUsers(data)
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleEdit = (user: AdminUser) => {
     setEditingId(user.id)
-    setEditData(user)
+    setEditData({ username: user.username, password: "" })
   }
 
-  const handleSave = () => {
-    if (!editingId) return
-    if (!editData.username || !editData.password) {
-      alert("Username dan password harus diisi")
-      return
-    }
+  const handleSave = async () => {
+    if (!editingId || !editData.username) return
+    setSaving(true)
 
-    const updated = users.map((u) => (u.id === editingId ? { ...u, ...editData } : u))
-    setUsers(updated)
-    localStorage.setItem("gasoutdoor_admin_users", JSON.stringify(updated))
-    setEditingId(null)
-    setEditData({})
+    try {
+      const body: Record<string, string> = { username: editData.username }
+      if (editData.password) body.password = editData.password
+
+      const res = await fetch(`/api/admin/users/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (res.ok) {
+        await fetchUsers()
+        setEditingId(null)
+        setEditData({ username: "", password: "" })
+      } else {
+        alert("Gagal menyimpan perubahan")
+      }
+    } catch (error) {
+      console.error("Error updating user:", error)
+      alert("Gagal menyimpan perubahan")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
     setEditingId(null)
-    setEditData({})
+    setEditData({ username: "", password: "" })
   }
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.username || !newUser.password) {
       alert("Username dan password harus diisi")
       return
     }
 
-    const user: AdminUser = {
-      id: `admin-${Date.now()}`,
-      username: newUser.username,
-      password: newUser.password,
-      createdAt: new Date().toISOString(),
-    }
+    setSaving(true)
 
-    const updated = [...users, user]
-    setUsers(updated)
-    localStorage.setItem("gasoutdoor_admin_users", JSON.stringify(updated))
-    setNewUser({ username: "", password: "" })
-    setShowAddForm(false)
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newUser),
+      })
+
+      if (res.ok) {
+        await fetchUsers()
+        setNewUser({ username: "", password: "" })
+        setShowAddForm(false)
+      } else {
+        const data = await res.json()
+        alert(data.error || "Gagal menambahkan user")
+      }
+    } catch (error) {
+      console.error("Error adding user:", error)
+      alert("Gagal menambahkan user")
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleDeleteUser = (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus user ini?")) {
-      const updated = users.filter((u) => u.id !== id)
-      setUsers(updated)
-      localStorage.setItem("gasoutdoor_admin_users", JSON.stringify(updated))
+  // Hapus user admin
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus user ini?")) return
+
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        await fetchUsers()
+      } else {
+        const data = await res.json()
+        alert(data.error || "Gagal menghapus user")
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error)
+      alert("Gagal menghapus user")
     }
+  }
+
+  if (!isHydrated || !isLoggedIn) {
+    return null
+  }
+
+  if (loading) {
+    return (
+      <section className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </section>
+    )
   }
 
   return (
@@ -116,25 +160,19 @@ export default function UsersPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Kelola User Admin</h1>
-          <p className="text-muted-foreground">Kelola akun admin dan password</p>
+          <p className="text-muted-foreground">Data dari database Supabase</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowAddForm(true)} className="gap-2 bg-gradient-to-r from-primary to-secondary">
-            <Plus className="h-4 w-4" />
-            Tambah User
-          </Button>
-          <Button onClick={handleLogout} variant="destructive" className="gap-2 text-white">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
-        </div>
+        <Button onClick={() => setShowAddForm(true)} className="gap-2 bg-gradient-to-r from-primary to-secondary">
+          <Plus className="h-4 w-4" />
+          Tambah User
+        </Button>
       </div>
 
       {showAddForm && (
         <div className="mb-8 rounded-lg border bg-white p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Tambah User Baru</h2>
-            <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => setShowAddForm(false)}>
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -162,12 +200,11 @@ export default function UsersPage() {
           </div>
 
           <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={handleAddUser} className="gap-2 bg-gradient-to-r from-primary to-secondary">
-              <Plus className="h-4 w-4" />
+            <Button onClick={handleAddUser} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Tambah
             </Button>
-            <Button onClick={() => setShowAddForm(false)} variant="outline" className="gap-2 bg-transparent">
-              <X className="h-4 w-4" />
+            <Button onClick={() => setShowAddForm(false)} variant="outline">
               Batal
             </Button>
           </div>
@@ -192,7 +229,7 @@ export default function UsersPage() {
                     <>
                       <td className="px-4 py-3">
                         <Input
-                          value={editData.username || ""}
+                          value={editData.username}
                           onChange={(e) => setEditData({ ...editData, username: e.target.value })}
                           className="h-8"
                         />
@@ -200,23 +237,22 @@ export default function UsersPage() {
                       <td className="px-4 py-3">
                         <Input
                           type="password"
-                          value={editData.password || ""}
+                          placeholder="Kosongkan jika tidak diubah"
+                          value={editData.password}
                           onChange={(e) => setEditData({ ...editData, password: e.target.value })}
                           className="h-8"
                         />
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {new Date(user.createdAt).toLocaleDateString("id-ID")}
+                        {new Date(user.created_at).toLocaleDateString("id-ID")}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex gap-2 justify-center">
-                          <Button onClick={handleSave} size="sm" variant="outline" className="gap-1 bg-transparent">
-                            <Save className="h-4 w-4" />
-                            Simpan
+                          <Button onClick={handleSave} size="sm" variant="outline" disabled={saving}>
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                           </Button>
-                          <Button onClick={handleCancel} size="sm" variant="outline" className="gap-1 bg-transparent">
+                          <Button onClick={handleCancel} size="sm" variant="outline">
                             <X className="h-4 w-4" />
-                            Batal
                           </Button>
                         </div>
                       </td>
@@ -226,22 +262,20 @@ export default function UsersPage() {
                       <td className="px-4 py-3 font-medium">{user.username}</td>
                       <td className="px-4 py-3 text-sm">••••••••</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {new Date(user.createdAt).toLocaleDateString("id-ID")}
+                        {new Date(user.created_at).toLocaleDateString("id-ID")}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex gap-2 justify-center">
-                          <Button onClick={() => handleEdit(user)} size="sm" variant="outline" className="gap-1">
+                          <Button onClick={() => handleEdit(user)} size="sm" variant="outline">
                             <Edit2 className="h-4 w-4" />
-                            Edit
                           </Button>
                           <Button
                             onClick={() => handleDeleteUser(user.id)}
                             size="sm"
                             variant="destructive"
-                            className="gap-1 text-white"
+                            className="text-white"
                           >
                             <Trash2 className="h-4 w-4" />
-                            Hapus
                           </Button>
                         </div>
                       </td>

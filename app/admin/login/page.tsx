@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import SiteHeader from "@/components/site-header"
 import SiteFooter from "@/components/site-footer"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("")
@@ -19,24 +19,33 @@ export default function AdminLoginPage() {
   const router = useRouter()
   const login = useAuthStore((state) => state.login)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle proses login
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
+    // Validasi input
     if (!username || !password) {
       setError("Username dan password harus diisi")
       setIsLoading(false)
       return
     }
 
-    if (login(username, password)) {
-      router.push("/admin")
-    } else {
-      setError("Username atau password salah")
-      setPassword("")
+    try {
+      // Panggil fungsi login dari auth-store (verifikasi ke API)
+      const success = await login(username, password)
+      if (success) {
+        router.push("/admin") // Redirect ke dashboard jika sukses
+      } else {
+        setError("Username atau password salah")
+        setPassword("")
+      }
+    } catch {
+      setError("Terjadi kesalahan. Silakan coba lagi.")
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   return (
@@ -82,19 +91,18 @@ export default function AdminLoginPage() {
             </div>
 
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary" disabled={isLoading}>
-              {isLoading ? "Memproses..." : "Login"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
           </form>
 
-          <div className="mt-6 rounded-lg bg-blue-50 p-3 text-xs text-blue-700 border border-blue-200">
-            <p className="font-semibold mb-1">Demo Credentials:</p>
-            <p>
-              Username: <span className="font-mono">admin</span>
-            </p>
-            <p>
-              Password: <span className="font-mono">admin123</span>
-            </p>
-          </div>
+        
         </div>
       </section>
       <SiteFooter />

@@ -8,10 +8,12 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/lib/auth-store"
 
+// Menu navigasi sidebar admin
 const menuItems = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/products", label: "Kelola Produk", icon: Package },
   { href: "/admin/orders", label: "Pesanan", icon: ShoppingCart },
+  { href: "/admin/customers", label: "Histori Pelanggan", icon: Users },
   { href: "/admin/stock-summary", label: "Summary Stock", icon: BarChart3 },
   { href: "/admin/reports", label: "Laporan", icon: FileText },
   { href: "/admin/discounts", label: "Kode Diskon", icon: Ticket },

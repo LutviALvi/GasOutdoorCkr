@@ -3,13 +3,12 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
-import type { Booking } from "@/lib/booking"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, Filter, TrendingUp, TrendingDown, DollarSign, ShoppingCart, RefreshCw } from "lucide-react"
+import { Download, Filter, TrendingUp, TrendingDown, DollarSign, ShoppingCart, RefreshCw, Loader2 } from "lucide-react"
 import { format, isWithinInterval, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { id as localeID } from "date-fns/locale"
 import {
@@ -26,10 +25,23 @@ import {
   Legend,
 } from "recharts"
 
+// New Type Definition matching DB/API
+// Tipe data untuk laporan booking yang diambil dari API
+type ReportBooking = {
+    id: string
+    order_number: string
+    created_at: string
+    booking_status: string
+    total: number
+    customer_name: string
+    customer_phone: string
+}
+
 export default function ReportsPage() {
   const router = useRouter()
   const { isLoggedIn } = useAuthStore()
-  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookings, setBookings] = useState<ReportBooking[]>([])
+  const [loading, setLoading] = useState(true)
   const [isHydrated, setIsHydrated] = useState(false)
 
   // Filter states
@@ -38,29 +50,33 @@ export default function ReportsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [periodFilter, setPeriodFilter] = useState("all")
 
+  // Terapkan filter periode waktu (bulan ini, bulan lalu, dll)
   const applyPeriodFilter = () => {
     const now = new Date()
     switch (periodFilter) {
-      case "thisMonth":
+      case "thisMonth": // Filter Bulan Ini
         setDateFrom(format(startOfMonth(now), "yyyy-MM-dd"))
         setDateTo(format(endOfMonth(now), "yyyy-MM-dd"))
         break
-      case "lastMonth":
+      case "lastMonth": // Filter Bulan Lalu
         const lastMonth = subMonths(now, 1)
         setDateFrom(format(startOfMonth(lastMonth), "yyyy-MM-dd"))
         setDateTo(format(endOfMonth(lastMonth), "yyyy-MM-dd"))
         break
-      case "last3Months":
+      case "last3Months": // Filter 3 Bulan Terakhir
         setDateFrom(format(startOfMonth(subMonths(now, 2)), "yyyy-MM-dd"))
         setDateTo(format(endOfMonth(now), "yyyy-MM-dd"))
         break
-      case "last6Months":
+      case "last6Months": // Filter 6 Bulan Terakhir
         setDateFrom(format(startOfMonth(subMonths(now, 5)), "yyyy-MM-dd"))
         setDateTo(format(endOfMonth(now), "yyyy-MM-dd"))
         break
-      default:
+      case "all": // Semua Waktu (Reset)
         setDateFrom("")
         setDateTo("")
+        break
+      default:
+        break
     }
   }
 
@@ -71,19 +87,28 @@ export default function ReportsPage() {
   useEffect(() => {
     if (isHydrated && !isLoggedIn) {
       router.push("/admin/login")
+      return
+    }
+    
+    if (isHydrated) {
+        fetchData()
     }
   }, [isHydrated, isLoggedIn, router])
 
-  useEffect(() => {
-    const raw = localStorage.getItem("gasoutdoor_bookings")
-    if (raw) {
+  // Ambil data pesanan dari API untuk laporan
+  const fetchData = async () => {
       try {
-        setBookings(JSON.parse(raw))
-      } catch {
-        setBookings([])
+          const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } })
+          if (res.ok) {
+              const data = await res.json()
+              setBookings(data)
+          }
+      } catch (e) {
+          console.error("Failed to fetch orders for report", e)
+      } finally {
+          setLoading(false)
       }
-    }
-  }, [])
+  }
 
   useEffect(() => {
     applyPeriodFilter()
@@ -93,11 +118,20 @@ export default function ReportsPage() {
     return null
   }
 
+  if (loading) {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+      )
+  }
+
   // Filter bookings
+  // Filter data booking berdasarkan tanggal dan status
   const filteredBookings = bookings.filter((b) => {
-    // Date filter
+    // Filter berdasarkan Tanggal
     if (dateFrom && dateTo) {
-      const bookingDate = new Date(b.createdAt)
+      const bookingDate = new Date(b.created_at)
       const from = parseISO(dateFrom)
       const to = parseISO(dateTo)
       to.setHours(23, 59, 59, 999)
@@ -106,8 +140,16 @@ export default function ReportsPage() {
       }
     }
 
-    // Status filter
-    if (statusFilter !== "all" && (b.status || "menunggu") !== statusFilter) {
+    // Filter berdasarkan Status
+    // Normalisasi status DB agar sesuai dengan filter UI
+    const status = b.booking_status
+    if (statusFilter !== "all" && status !== statusFilter) {
+      // Mapping status bahasa Indonesia <-> Inggris jika diperlukan
+      if (statusFilter === 'menunggu' && status === 'pending') return true
+      if (statusFilter === 'aktif' && status === 'active') return true
+      if (statusFilter === 'selesai' && status === 'completed') return true
+      if (statusFilter === 'dibatalkan' && status === 'cancelled') return true
+      
       return false
     }
 
@@ -115,28 +157,31 @@ export default function ReportsPage() {
   })
 
   // Calculate stats
-  const totalRevenue = filteredBookings.reduce((sum, b) => sum + (b.total || 0), 0)
+  // Only count revenue for valid orders (not cancelled)
+  const validOrders = filteredBookings.filter(b => b.booking_status !== 'cancelled')
+  const totalRevenue = validOrders.reduce((sum, b) => sum + (b.total || 0), 0)
+  
   const totalOrders = filteredBookings.length
-  const completedOrders = filteredBookings.filter((b) => b.status === "selesai").length
-  const cancelledOrders = filteredBookings.filter((b) => b.status === "dibatalkan").length
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+  const completedOrders = filteredBookings.filter((b) => b.booking_status === "completed" || b.booking_status === "selesai").length
+  const cancelledOrders = filteredBookings.filter((b) => b.booking_status === "cancelled" || b.booking_status === "dibatalkan").length
+  const avgOrderValue = validOrders.length > 0 ? totalRevenue / validOrders.length : 0
 
   // Status distribution for pie chart
   const statusData = [
     {
       name: "Menunggu",
-      value: filteredBookings.filter((b) => !b.status || b.status === "menunggu").length,
+      value: filteredBookings.filter((b) => b.booking_status === "pending" || b.booking_status === "menunggu").length,
       color: "#f59e0b",
     },
-    { name: "Aktif", value: filteredBookings.filter((b) => b.status === "aktif").length, color: "#10b981" },
-    { name: "Selesai", value: filteredBookings.filter((b) => b.status === "selesai").length, color: "#6b7280" },
-    { name: "Dibatalkan", value: filteredBookings.filter((b) => b.status === "dibatalkan").length, color: "#ef4444" },
+    { name: "Aktif", value: filteredBookings.filter((b) => b.booking_status === "active" || b.booking_status === "aktif").length, color: "#10b981" },
+    { name: "Selesai", value: filteredBookings.filter((b) => b.booking_status === "completed" || b.booking_status === "selesai").length, color: "#6b7280" },
+    { name: "Dibatalkan", value: filteredBookings.filter((b) => b.booking_status === "cancelled" || b.booking_status === "dibatalkan").length, color: "#ef4444" },
   ].filter((d) => d.value > 0)
 
   // Daily revenue for bar chart
   const dailyData: { date: string; revenue: number; orders: number }[] = []
-  filteredBookings.forEach((b) => {
-    const date = format(new Date(b.createdAt), "dd/MM")
+  filteredBookings.filter(b => b.booking_status !== 'cancelled').forEach((b) => {
+    const date = format(new Date(b.created_at), "dd/MM")
     const existing = dailyData.find((d) => d.date === date)
     if (existing) {
       existing.revenue += b.total || 0
@@ -145,7 +190,7 @@ export default function ReportsPage() {
       dailyData.push({ date, revenue: b.total || 0, orders: 1 })
     }
   })
-  dailyData.sort((a, b) => a.date.localeCompare(b.date))
+  dailyData.sort((a, b) => a.date.localeCompare(b.date)) // Simple string sort works for dd/MM if strictly within same year/month structure, but better to use timestamp if cross-year. For basic usage ok.
 
   // Export report
   const exportReport = () => {
@@ -162,14 +207,14 @@ export default function ReportsPage() {
       [`Rata-rata Nilai Pesanan, Rp${Math.round(avgOrderValue).toLocaleString("id-ID")}`],
       [""],
       ["Detail Pesanan:"],
-      ["ID", "Nama", "Telepon", "Tanggal", "Status", "Total"].join(","),
+      ["Order No", "Nama", "Telepon", "Tanggal", "Status", "Total"].join(","),
       ...filteredBookings.map((b) =>
         [
-          b.id,
-          `"${b.customer.name}"`,
-          `"${b.customer.phone}"`,
-          format(new Date(b.createdAt), "dd/MM/yyyy"),
-          b.status || "menunggu",
+          b.order_number || b.id,
+          `"${b.customer_name}"`,
+          `"${b.customer_phone}"`,
+          format(new Date(b.created_at), "dd/MM/yyyy"),
+          b.booking_status,
           b.total || 0,
         ].join(","),
       ),
@@ -195,7 +240,7 @@ export default function ReportsPage() {
     <div className="p-4 md:p-6 lg:p-8">
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold">Laporan</h1>
-        <p className="text-muted-foreground">Analisis dan laporan penyewaan</p>
+        <p className="text-muted-foreground">Analisis dan laporan penyewaan (Database)</p>
       </div>
 
       {/* Filters */}
@@ -354,7 +399,7 @@ export default function ReportsPage() {
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                   >
                     {statusData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -385,7 +430,7 @@ export default function ReportsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-2">ID</th>
+                    <th className="text-left py-3 px-2">Order No</th>
                     <th className="text-left py-3 px-2">Pelanggan</th>
                     <th className="text-left py-3 px-2 hidden md:table-cell">Tanggal</th>
                     <th className="text-left py-3 px-2">Status</th>
@@ -395,29 +440,29 @@ export default function ReportsPage() {
                 <tbody>
                   {filteredBookings.slice(0, 20).map((b) => (
                     <tr key={b.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-2 font-mono text-xs">#{b.id.slice(-6)}</td>
+                      <td className="py-3 px-2 font-mono text-xs">{b.order_number || b.id.slice(0, 8)}</td>
                       <td className="py-3 px-2">
-                        <div>{b.customer.name}</div>
+                        <div>{b.customer_name}</div>
                         <div className="text-xs text-muted-foreground md:hidden">
-                          {format(new Date(b.createdAt), "dd/MM/yy")}
+                          {format(new Date(b.created_at), "dd/MM/yy")}
                         </div>
                       </td>
                       <td className="py-3 px-2 hidden md:table-cell">
-                        {format(new Date(b.createdAt), "dd MMM yyyy", { locale: localeID })}
+                        {format(new Date(b.created_at), "dd MMM yyyy", { locale: localeID })}
                       </td>
                       <td className="py-3 px-2">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
-                            b.status === "aktif"
+                            b.booking_status === "active" || b.booking_status === "aktif"
                               ? "bg-green-100 text-green-800"
-                              : b.status === "selesai"
+                              : b.booking_status === "completed" || b.booking_status === "selesai"
                                 ? "bg-gray-100 text-gray-800"
-                                : b.status === "dibatalkan"
+                                : b.booking_status === "cancelled" || b.booking_status === "dibatalkan"
                                   ? "bg-red-100 text-red-800"
                                   : "bg-yellow-100 text-yellow-800"
                           }`}
                         >
-                          {b.status || "Menunggu"}
+                          {b.booking_status}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-right font-medium">Rp{(b.total || 0).toLocaleString("id-ID")}</td>
