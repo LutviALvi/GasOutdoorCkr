@@ -42,16 +42,20 @@ export default function AdminDashboard() {
 
     async function fetchData() {
        try {
-           // Mengambil Data Pesanan dari API
-           const resOrders = await fetch('/api/admin/orders', { cache: "no-store" })
+           setLoading(true)
+           const resOrders = await fetch('/api/admin/orders', { 
+             cache: "no-store",
+             headers: { 'Cache-Control': 'no-cache' } 
+           })
            if (resOrders.ok) {
                const data = await resOrders.json()
                setOrders(data)
            }
 
-           // Mengambil Statistik Dashboard (untuk jumlah produk)
-           // Ini terpisah dari pesanan karena data produk ada di tabel berbeda
-           const resStats = await fetch('/api/admin/dashboard', { cache: "no-store" })
+           const resStats = await fetch('/api/admin/dashboard', { 
+             cache: "no-store",
+             headers: { 'Cache-Control': 'no-cache' } 
+           })
            if (resStats.ok) {
                const stats = await resStats.json()
                setTotalProducts(stats.totalProducts)
@@ -63,8 +67,15 @@ export default function AdminDashboard() {
            setLoading(false)
        }
     }
+
     fetchData()
 
+    // Polling data setiap 30 detik untuk real-time update
+    const interval = setInterval(() => {
+        fetchData()
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [isLoggedIn, router])
 
   if (loading) {

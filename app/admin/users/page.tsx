@@ -49,13 +49,22 @@ export default function UsersPage() {
     }
     if (isHydrated) {
       fetchUsers()
+
+      const interval = setInterval(() => {
+        fetchUsers()
+      }, 30000)
+
+      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil daftar user admin dari API
   async function fetchUsers() {
     try {
-      const res = await fetch("/api/admin/users", { cache: "no-store" })
+      const res = await fetch("/api/admin/users", { 
+        cache: "no-store",
+        headers: { 'Cache-Control': 'no-cache' }
+      })
       if (res.ok) {
         const data = await res.json()
         setUsers(data)

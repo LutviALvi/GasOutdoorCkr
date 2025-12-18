@@ -85,13 +85,22 @@ export default function AdminOrdersPage() {
     }
     if (isHydrated) {
       fetchData()
+
+      const interval = setInterval(() => {
+        fetchData()
+      }, 30000)
+
+      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil data pesanan dari API
   async function fetchData() {
     try {
-      const res = await fetch(`/api/admin/orders`, { cache: "no-store" })
+      const res = await fetch(`/api/admin/orders`, { 
+        cache: "no-store",
+        headers: { 'Cache-Control': 'no-cache' } 
+      })
       if (res.ok) {
         const bookingsData = await res.json()
         setBookings(bookingsData)

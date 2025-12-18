@@ -69,12 +69,21 @@ export default function DiscountsPage() {
     }
     if (isHydrated) {
       fetchDiscounts()
+
+      const interval = setInterval(() => {
+        fetchDiscounts()
+      }, 30000)
+
+      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   async function fetchDiscounts() {
     try {
-      const res = await fetch("/api/discounts", { cache: "no-store" })
+      const res = await fetch("/api/discounts", { 
+        cache: "no-store",
+        headers: { 'Cache-Control': 'no-cache' }
+      })
       if (res.ok) {
         const data = await res.json()
         setDiscountCodes(data)

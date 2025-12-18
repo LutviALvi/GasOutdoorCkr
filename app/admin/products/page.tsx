@@ -59,13 +59,22 @@ export default function ProductManagementPage() {
     }
     if (isHydrated) {
       fetchProducts()
+      
+      const interval = setInterval(() => {
+        fetchProducts()
+      }, 30000)
+
+      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Fungsi untuk mengambil semua produk dari API
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/products", { cache: "no-store" })
+      const res = await fetch("/api/products", { 
+        cache: "no-store",
+        headers: { 'Cache-Control': 'no-cache' }
+      })
       if (res.ok) {
         const data = await res.json()
         setProducts(data)
