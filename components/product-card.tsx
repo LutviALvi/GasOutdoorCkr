@@ -20,6 +20,8 @@ export default function ProductCard({ product }: { product?: Product }) {
 		slug: 'placeholder',
 		name: 'Produk',
 		category: 'Lainnya',
+		price_per_day: 0,
+		price_per_trip: 0,
 		pricePerDay: 0,
 		pricePerTrip: 0,
 		stock: 0,
@@ -81,36 +83,36 @@ export default function ProductCard({ product }: { product?: Product }) {
 					</Button>
 				</div>
 			</div>
-			<CardHeader className="pb-2">
-				<CardTitle className="text-base line-clamp-1 group-hover:text-brand-teal transition-colors duration-300">{p.name}</CardTitle>
+			<CardHeader className="pb-2 p-3 sm:p-6">
+				<CardTitle className="text-base text-mobile-title line-clamp-1 group-hover:text-brand-teal transition-colors duration-300">{p.name}</CardTitle>
 			</CardHeader>
 			<CardContent className="text-sm text-muted-foreground flex-1 space-y-3">
 				<div className="flex items-baseline gap-1">
-					<span className="text-2xl font-bold bg-gradient-to-r from-brand-teal via-brand-sage to-brand-orange bg-clip-text text-transparent">Rp{p.pricePerTrip.toLocaleString('id-ID')}</span>
-					<span className="text-brand-navy/60">/trip</span>
+					<span className="text-2xl text-mobile-price font-bold bg-gradient-to-r from-brand-teal via-brand-sage to-brand-orange bg-clip-text text-transparent">Rp{(p.pricePerTrip ?? 0).toLocaleString('id-ID')}</span>
+					<span className="text-brand-navy/60 text-xs sm:text-sm">/trip</span>
 				</div>
 				<div className="flex items-center justify-between">
-					<span className="text-brand-navy/70">
+					<span className="text-brand-navy/70 text-xs sm:text-sm">
 						Stok: <span className="font-semibold text-brand-teal">{p.stock}</span>
 					</span>
 						{/* 5-Star Rating Display */}
 						<div className="flex items-center gap-1">
 							<div className="flex">
 								{[...Array(5)].map((_, i) => (
-									<Star key={i} className="h-3 w-3 text-brand-sunset fill-current" />
+									<Star key={i} className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-brand-sunset fill-current" />
 								))}
 							</div>
-							<span className="text-xs font-medium text-brand-navy/70 ml-1">5.0</span>
+							<span className="text-[10px] sm:text-xs font-medium text-brand-navy/70 ml-1">5.0</span>
 						</div>
 					</div>
 			</CardContent>
-			<CardFooter className="pt-0">
+			<CardFooter className="pt-0 p-3 sm:p-6">
 				<div className="flex w-full gap-2">
-					<Button asChild variant="outline" className="w-1/2 border-brand-sage/40 hover:bg-brand-mint/20 bg-transparent text-brand-navy hover:text-brand-teal transition-colors">
+					<Button asChild variant="outline" className="w-1/2 h-8 sm:h-10 text-xs sm:text-sm border-brand-sage/40 hover:bg-brand-mint/20 bg-transparent text-brand-navy hover:text-brand-teal transition-colors">
 						<Link href={`/products/${p.slug}`}>Detail</Link>
 					</Button>
 					<Button
-						className="w-1/2 bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-lg hover:shadow-xl transition-all duration-300"
+						className="w-1/2 h-8 sm:h-10 text-xs sm:text-sm bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-lg hover:shadow-xl transition-all duration-300"
 						onClick={handleAddToCart}
 						disabled={p.stock <= 0 || !isDateSelected}
 						title={!isDateSelected ? 'Pilih tanggal sewa terlebih dahulu' : ''}>

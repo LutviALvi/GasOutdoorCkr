@@ -8,7 +8,7 @@ import './globals.css';
 // Metadata global untuk SEO dan ikon website
 export const metadata: Metadata = {
 	title: 'GasOutdoo.Ckr',
-	description: 'beta 1.0',
+	description: 'V 1.0',
 	generator: '',
 	icons: {
 		icon: '/images/icon.jpg',

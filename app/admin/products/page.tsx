@@ -9,6 +9,20 @@ import { Input } from "@/components/ui/input"
 import { Edit2, Save, X, Upload, Plus, Search, Trash2, Loader2 } from "lucide-react"
 import Image from "next/image"
 import type { Product } from "@/lib/products"
+import { toast } from "sonner"
+
+const CATEGORIES = ["Tenda", "Tidur", "Dapur", "Penerangan", "Kursi/Meja", "Lainnya"]
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function ProductManagementPage() {
   const router = useRouter()
@@ -51,13 +65,14 @@ export default function ProductManagementPage() {
   // Fungsi untuk mengambil semua produk dari API
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/products")
+      const res = await fetch("/api/products", { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         setProducts(data)
       }
     } catch (error) {
       console.error("Error fetching products:", error)
+      toast.error("Gagal mengambil data produk")
     } finally {
       setLoading(false)
     }
@@ -95,14 +110,17 @@ export default function ProductManagementPage() {
       })
 
       if (res.ok) {
+        toast.success("Produk berhasil diperbarui")
         await fetchProducts() // Refresh data setelah update
         setEditingId(null)
         setEditData({})
         setImagePreview(null)
+      } else {
+        toast.error("Gagal menyimpan perubahan")
       }
     } catch (error) {
       console.error("Error updating product:", error)
-      alert("Gagal menyimpan perubahan")
+      toast.error("Terjadi kesalahan saat menyimpan")
     } finally {
       setSaving(false)
     }
@@ -115,16 +133,17 @@ export default function ProductManagementPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus produk ini?")) return
-
     try {
       const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
       if (res.ok) {
+        toast.success("Produk berhasil dihapus")
         await fetchProducts()
+      } else {
+        toast.error("Gagal menghapus produk")
       }
     } catch (error) {
       console.error("Error deleting product:", error)
-      alert("Gagal menghapus produk")
+      toast.error("Terjadi kesalahan saat menghapus")
     }
   }
 
@@ -162,7 +181,7 @@ export default function ProductManagementPage() {
 
   const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.price_per_trip) {
-      alert("Nama dan harga harus diisi")
+      toast.warning("Nama dan harga harus diisi")
       return
     }
 
@@ -185,6 +204,7 @@ export default function ProductManagementPage() {
       })
 
       if (res.ok) {
+        toast.success("Produk baru berhasil ditambahkan")
         await fetchProducts()
         setNewProduct({
           name: "",
@@ -198,10 +218,12 @@ export default function ProductManagementPage() {
         })
         setNewProductImage(null)
         setShowAddForm(false)
+      } else {
+        toast.error("Gagal menambahkan produk")
       }
     } catch (error) {
       console.error("Error adding product:", error)
-      alert("Gagal menambahkan produk")
+      toast.error("Terjadi kesalahan saat menambah produk")
     } finally {
       setSaving(false)
     }
@@ -302,11 +324,17 @@ export default function ProductManagementPage() {
               </div>
               <div>
                 <label className="text-sm font-semibold">Kategori</label>
-                <Input
-                  value={newProduct.category || ""}
+                <select
+                  value={newProduct.category || "Tenda"}
                   onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  className="mt-1"
-                />
+                  className="mt-1 w-full px-3 py-2 border rounded-md text-sm bg-white"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-sm font-semibold">Deskripsi</label>
@@ -400,6 +428,20 @@ export default function ProductManagementPage() {
                         />
                       </div>
                       <div>
+                        <label className="text-sm font-semibold">Kategori</label>
+                        <select
+                          value={editData.category || ""}
+                          onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                          className="mt-1 w-full px-3 py-2 border rounded-md text-sm bg-white"
+                        >
+                          {CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
                         {/* Description Field (Added as per request) */}
                         <label className="text-sm font-semibold">Deskripsi</label>
                         <textarea
@@ -476,9 +518,30 @@ export default function ProductManagementPage() {
                         <Button onClick={() => handleEdit(product)} variant="outline" size="sm">
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button onClick={() => handleDelete(product.id)} variant="destructive" size="sm" className="text-white">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" className="text-white">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus Produk?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus {product.name}? Tindakan ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDelete(product.id)}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
 
