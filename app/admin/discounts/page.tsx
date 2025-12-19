@@ -11,18 +11,6 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Pencil, Trash2, Ticket, Search, Percent, Calendar, Loader2 } from "lucide-react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { toast } from "sonner"
 
 // Interface untuk Kode Diskon
 interface DiscountCode {
@@ -69,28 +57,18 @@ export default function DiscountsPage() {
     }
     if (isHydrated) {
       fetchDiscounts()
-
-      const interval = setInterval(() => {
-        fetchDiscounts()
-      }, 30000)
-
-      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   async function fetchDiscounts() {
     try {
-      const res = await fetch("/api/discounts", { 
-        cache: "no-store",
-        headers: { 'Cache-Control': 'no-cache' }
-      })
+      const res = await fetch("/api/discounts")
       if (res.ok) {
         const data = await res.json()
         setDiscountCodes(data)
       }
     } catch (error) {
       console.error("Error fetching discounts:", error)
-      toast.error("Gagal mengambil data diskon")
     } finally {
       setLoading(false)
     }
@@ -125,7 +103,7 @@ export default function DiscountsPage() {
   const handleAdd = async () => {
     // Validasi form
     if (!formCode.trim() || !formPercentage || !formDescription.trim()) {
-      toast.warning("Kode, persentase, dan deskripsi harus diisi")
+      alert("Kode, persentase, dan deskripsi harus diisi")
       return
     }
 
@@ -147,16 +125,15 @@ export default function DiscountsPage() {
       })
 
       if (res.ok) {
-        toast.success("Kode diskon baru berhasil ditambahkan")
         await fetchDiscounts() // Refresh data
         resetForm()
         setIsAddOpen(false) // Tutup dialog
       } else {
-        toast.error("Gagal menambahkan kode diskon")
+        alert("Gagal menambahkan kode diskon")
       }
     } catch (error) {
       console.error("Error adding discount:", error)
-      toast.error("Terjadi kesalahan saat menambah kode diskon")
+      alert("Gagal menambahkan kode diskon")
     } finally {
       setIsSaving(false)
     }
@@ -165,7 +142,7 @@ export default function DiscountsPage() {
   const handleUpdate = async () => {
     if (!editingDiscount) return
     if (!formCode.trim() || !formPercentage || !formDescription.trim()) {
-      toast.warning("Kode, persentase, dan deskripsi harus diisi")
+      alert("Kode, persentase, dan deskripsi harus diisi")
       return
     }
 
@@ -187,34 +164,33 @@ export default function DiscountsPage() {
       })
 
       if (res.ok) {
-        toast.success("Kode diskon berhasil diperbarui")
         await fetchDiscounts()
         resetForm()
         setEditingDiscount(null)
       } else {
-        toast.error("Gagal memperbarui kode diskon")
+        alert("Gagal memperbarui kode diskon")
       }
     } catch (error) {
       console.error("Error updating discount:", error)
-      toast.error("Terjadi kesalahan saat memperbarui")
+      alert("Gagal memperbarui kode diskon")
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus kode diskon ini?")) return
 
     try {
       const res = await fetch(`/api/discounts/${id}`, { method: "DELETE" })
       if (res.ok) {
-        toast.success("Kode diskon berhasil dihapus")
         await fetchDiscounts()
       } else {
-        toast.error("Gagal menghapus kode diskon")
+        alert("Gagal menghapus kode diskon")
       }
     } catch (error) {
       console.error("Error deleting discount:", error)
-      toast.error("Terjadi kesalahan saat menghapus")
+      alert("Gagal menghapus kode diskon")
     }
   }
 
@@ -462,34 +438,14 @@ export default function DiscountsPage() {
                         </div>
                       </DialogContent>
                     </Dialog>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="text-white"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Hapus Kode Diskon?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Apakah Anda yakin ingin menghapus kode {discount.code}? Tindakan ini tidak dapat dibatalkan.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleDelete(discount.id)}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                          >
-                            Hapus
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(discount.id)}
+                      className="text-white"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}

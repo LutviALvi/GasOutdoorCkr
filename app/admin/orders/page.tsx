@@ -12,18 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Search, Eye, Phone, Calendar, DollarSign, Download, Trash2, Package, User, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { toast } from "sonner"
 import { id as localeID } from "date-fns/locale"
 
 interface BookingItem {
@@ -85,22 +73,13 @@ export default function AdminOrdersPage() {
     }
     if (isHydrated) {
       fetchData()
-
-      const interval = setInterval(() => {
-        fetchData()
-      }, 30000)
-
-      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil data pesanan dari API
   async function fetchData() {
     try {
-      const res = await fetch(`/api/admin/orders`, { 
-        cache: "no-store",
-        headers: { 'Cache-Control': 'no-cache' } 
-      })
+      const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } })
       if (res.ok) {
         const bookingsData = await res.json()
         setBookings(bookingsData)
@@ -198,28 +177,26 @@ export default function AdminOrdersPage() {
       })
 
       if (res.ok) {
-        toast.success("Status pesanan berhasil diperbarui")
-        await fetchData()
+        // Success
       } else {
-        setBookings(previous)
-        toast.error("Gagal mengupdate status")
+          setBookings(previous)
+          alert("Gagal mengupdate status")
       }
     } catch (error) {
       console.error("Error updating status:", error)
       setBookings(previous)
-      toast.error("Terjadi kesalahan saat mengupdate status")
     }
   }
 
   const deleteBooking = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus booking ini?")) return
 
     try {
       const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" })
       if (res.ok) {
-        toast.success("Pesanan berhasil dihapus")
         await fetchData()
       } else {
-        toast.error("Gagal menghapus booking")
+        alert("Gagal menghapus booking")
       }
     } catch (error) {
       console.error("Error deleting booking:", error)
@@ -493,30 +470,9 @@ export default function AdminOrdersPage() {
                       </SelectContent>
                     </Select>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="text-white">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Hapus Pesanan?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Apakah Anda yakin ingin menghapus pesanan dari {booking.customer_name}? Tindakan ini tidak dapat dibatalkan.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Batal</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => deleteBooking(booking.id)}
-                            className="bg-red-600 hover:bg-red-700 text-white"
-                          >
-                            Hapus
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button variant="destructive" size="sm" onClick={() => deleteBooking(booking.id)} className="text-white">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>

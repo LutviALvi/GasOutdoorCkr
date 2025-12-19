@@ -24,35 +24,35 @@ export default function Page() {
 						<h1 className="text-4xl md:text-6xl font-extrabold tracking-tight">
 							Sewa Perlengkapan <span className="bg-gradient-to-r from-brand-teal via-brand-sage to-brand-orange bg-clip-text text-transparent">Outdoor</span> di Cikarang
 						</h1>
-						<p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
+						<p className="text-muted-foreground text-lg leading-relaxed">
 							Pilih tenda, sleeping bag, kompor, dan perlengkapan camping lainnya. Booking online mudah, pickup/antar tersedia di area Cikarang dan sekitarnya.
 						</p>
-						<div className="flex flex-wrap gap-3">
-							<Button asChild size="lg" className="bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-xl text-mobile-btn text-white border-0">
+						<div className="flex gap-3">
+							<Button asChild size="lg" className="bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-xl">
 								<Link href="/products">Mulai Sewa Sekarang</Link>
 							</Button>
-							<Button asChild size="lg" className="bg-brand-navy hover:bg-brand-navy/90 text-mobile-btn text-white border-0">
+							<Button asChild size="lg" variant="outline" className="border-brand-sage/40 hover:bg-brand-mint/10 bg-transparent text-brand-navy">
 								<a href="#cara-sewa">Cara Sewa</a>
 							</Button>
 						</div>
 						<div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4">
 							<div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-brand-mint/30 to-brand-cream/50 border border-brand-sage/20">
-								<div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-brand-teal to-brand-sage flex items-center justify-center flex-shrink-0">
-									<CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+								<div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-teal to-brand-sage flex items-center justify-center">
+									<CheckCircle className="h-5 w-5 text-white" />
 								</div>
-								<span className="font-semibold text-brand-navy text-xs sm:text-base">Harga Bersahabat</span>
+								<span className="font-semibold text-brand-navy">Harga Bersahabat</span>
 							</div>
 							<div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-brand-coral/20 to-brand-sunset/20 border border-brand-orange/20">
-								<div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-brand-orange to-brand-coral flex items-center justify-center flex-shrink-0">
-									<Clock className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+								<div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-orange to-brand-coral flex items-center justify-center">
+									<Clock className="h-5 w-5 text-white" />
 								</div>
-								<span className="font-semibold text-brand-navy text-xs sm:text-base">Proses Cepat</span>
+								<span className="font-semibold text-brand-navy">Proses Cepat</span>
 							</div>
 							<div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-brand-lavender/20 to-brand-mint/20 border border-brand-sage/20">
-								<div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-brand-navy to-brand-teal flex items-center justify-center flex-shrink-0">
-									<Shield className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+								<div className="h-10 w-10 rounded-full bg-gradient-to-br from-brand-navy to-brand-teal flex items-center justify-center">
+									<Shield className="h-5 w-5 text-white" />
 								</div>
-								<span className="font-semibold text-brand-navy text-xs sm:text-base">Barang Terawat</span>
+								<span className="font-semibold text-brand-navy">Barang Terawat</span>
 							</div>
 						</div>
 					</div>
@@ -144,48 +144,45 @@ export default function Page() {
 					<h2 className="text-4xl font-bold bg-gradient-to-r from-brand-teal via-brand-orange to-brand-coral bg-clip-text text-transparent mb-6">Kategori Populer</h2>
 					<p className="text-brand-navy/70 text-lg ">Pilih sesuai kebutuhan adventure Anda</p>
 				</div>
-				<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 px-2 sm:px-0">
-					<Link href="/products?category=Tenda" className="group relative overflow-hidden rounded-3xl border-2 border-brand-teal/30 hover:shadow-2xl transition-all duration-500 bg-white">
+				<div className="grid gap-2 sm:grid-cols-3">
+					<Link href="/products?category=Tenda" className="group relative overflow-hidden rounded-3xl border-2 border-brand-teal/30  hover:shadow-2xl  transition-all duration-500">
 						<div className="absolute inset-0 gradient-ocean opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-square sm:aspect-[4/3] overflow-hidden">
+						<div className="relative aspect-[4/3] overflow-hidden">
 							<Image src="/images/tenda.jpg" alt="Kategori Tenda" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
 						</div>
-						<div className="relative p-4 sm:p-6 bg-gradient-to-br from-white to-brand-mint/30">
-							<div className="font-bold text-lg sm:text-xl text-brand-teal mb-1">Tenda</div>
-							<div className="text-brand-navy/70 text-xs sm:text-sm line-clamp-2">Kapasitas 2-8 orang</div>
+						<div className="relative p-8 bg-gradient-to-br from-white to-brand-mint/30">
+							<div className="font-bold text-xl text-brand-teal mb-2">Tenda</div>
+							<div className="text-brand-navy/70">Berbagai ukuran untuk solo hingga keluarga</div>
 						</div>
 					</Link>
-
-					<Link href="/products?category=Tidur" className="group relative overflow-hidden rounded-3xl border-2 border-brand-orange/30 hover:shadow-2xl transition-all duration-500 bg-white">
+					<Link href="/products?category=Tidur" className="group relative overflow-hidden rounded-3xl border-2 border-brand-orange/30  hover:shadow-2xl  transition-all duration-500">
 						<div className="absolute inset-0 gradient-sunset opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-square sm:aspect-[4/3] overflow-hidden">
+						<div className="relative aspect-[4/3] overflow-hidden">
 							<Image src="/images/sb.jpg" alt="Kategori Perlengkapan Tidur" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
 						</div>
-						<div className="relative p-4 sm:p-6 bg-gradient-to-br from-white to-brand-coral/10">
-							<div className="font-bold text-lg sm:text-xl text-brand-orange mb-1">Tidur</div>
-							<div className="text-brand-navy/70 text-xs sm:text-sm line-clamp-2">Sleeping bag & matras</div>
+						<div className="relative p-8 bg-gradient-to-br from-white to-brand-coral/10">
+							<div className="font-bold text-xl text-brand-orange mb-2">Perlengkapan Tidur</div>
+							<div className="text-brand-navy/70">Sleeping bag dan matras berkualitas</div>
 						</div>
 					</Link>
-
-					<Link href="/products?category=Dapur" className="group relative overflow-hidden rounded-3xl border-2 border-brand-sage/30 hover:shadow-2xl transition-all duration-500 bg-white">
+					<Link href="/products?category=Tidur" className="group relative overflow-hidden rounded-3xl border-2 border-brand-orange/30  hover:shadow-2xl  transition-all duration-500">
+						<div className="absolute inset-0 gradient-sunset opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
+						<div className="relative aspect-[4/3] overflow-hidden">
+							<Image src="/images/carrier.jpg" alt="Kategori Perlengkapan Tidur" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+						</div>
+						<div className="relative p-8 bg-gradient-to-br from-white to-brand-coral/10">
+							<div className="font-bold text-xl text-brand-orange mb-2">Carrier</div>
+							<div className="text-brand-navy/70">carrier tas gunung untuk membawa perlengkapan </div>
+						</div>
+					</Link>
+					<Link href="/products?category=Dapur" className="col-start-2 group relative overflow-hidden rounded-3xl border-2 border-brand-sage/30 hover:hover:shadow-2xl  transition-all duration-500">
 						<div className="absolute inset-0 gradient-lavender opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-square sm:aspect-[4/3] overflow-hidden">
-							<Image src="/images/nesting.jpg" alt="Kategori Dapur" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+						<div className="relative aspect-[4/3] overflow-hidden">
+							<Image src="/images/nesting.jpg" alt="Kategori Dapur Camping" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
 						</div>
-						<div className="relative p-4 sm:p-6 bg-gradient-to-br from-white to-brand-lavender/10">
-							<div className="font-bold text-lg sm:text-xl text-brand-sage mb-1">Dapur</div>
-							<div className="text-brand-navy/70 text-xs sm:text-sm line-clamp-2">Kompor & alat masak</div>
-						</div>
-					</Link>
-
-					<Link href="/products?category=Lainnya" className="group relative overflow-hidden rounded-3xl border-2 border-brand-lavender/30 hover:shadow-2xl transition-all duration-500 bg-white">
-						<div className="absolute inset-0 gradient-ocean opacity-0 group-hover:opacity-20 transition-all duration-500"></div>
-						<div className="relative aspect-square sm:aspect-[4/3] overflow-hidden">
-							<Image src="/images/carrier.jpg" alt="Kategori Lainnya" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
-						</div>
-						<div className="relative p-4 sm:p-6 bg-gradient-to-br from-white to-brand-lavender/20">
-							<div className="font-bold text-lg sm:text-xl text-brand-lavender mb-1">Lainnya</div>
-							<div className="text-brand-navy/70 text-xs sm:text-sm line-clamp-2">Carrier & perlengkapan</div>
+						<div className="relative p-8 bg-gradient-to-br from-white to-brand-lavender/10">
+							<div className="font-bold text-xl text-brand-sage mb-2">Dapur Camping</div>
+							<div className="text-brand-navy/70">Kompor dan peralatan masak lengkap</div>
 						</div>
 					</Link>
 				</div>

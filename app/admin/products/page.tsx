@@ -9,20 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Edit2, Save, X, Upload, Plus, Search, Trash2, Loader2 } from "lucide-react"
 import Image from "next/image"
 import type { Product } from "@/lib/products"
-import { toast } from "sonner"
 
 const CATEGORIES = ["Tenda", "Tidur", "Dapur", "Penerangan", "Kursi/Meja", "Lainnya"]
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 
 export default function ProductManagementPage() {
   const router = useRouter()
@@ -59,29 +47,19 @@ export default function ProductManagementPage() {
     }
     if (isHydrated) {
       fetchProducts()
-      
-      const interval = setInterval(() => {
-        fetchProducts()
-      }, 30000)
-
-      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Fungsi untuk mengambil semua produk dari API
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/products", { 
-        cache: "no-store",
-        headers: { 'Cache-Control': 'no-cache' }
-      })
+      const res = await fetch("/api/products")
       if (res.ok) {
         const data = await res.json()
         setProducts(data)
       }
     } catch (error) {
       console.error("Error fetching products:", error)
-      toast.error("Gagal mengambil data produk")
     } finally {
       setLoading(false)
     }
@@ -119,17 +97,14 @@ export default function ProductManagementPage() {
       })
 
       if (res.ok) {
-        toast.success("Produk berhasil diperbarui")
         await fetchProducts() // Refresh data setelah update
         setEditingId(null)
         setEditData({})
         setImagePreview(null)
-      } else {
-        toast.error("Gagal menyimpan perubahan")
       }
     } catch (error) {
       console.error("Error updating product:", error)
-      toast.error("Terjadi kesalahan saat menyimpan")
+      alert("Gagal menyimpan perubahan")
     } finally {
       setSaving(false)
     }
@@ -142,17 +117,16 @@ export default function ProductManagementPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus produk ini?")) return
+
     try {
       const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
       if (res.ok) {
-        toast.success("Produk berhasil dihapus")
         await fetchProducts()
-      } else {
-        toast.error("Gagal menghapus produk")
       }
     } catch (error) {
       console.error("Error deleting product:", error)
-      toast.error("Terjadi kesalahan saat menghapus")
+      alert("Gagal menghapus produk")
     }
   }
 
@@ -190,7 +164,7 @@ export default function ProductManagementPage() {
 
   const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.price_per_trip) {
-      toast.warning("Nama dan harga harus diisi")
+      alert("Nama dan harga harus diisi")
       return
     }
 
@@ -213,7 +187,6 @@ export default function ProductManagementPage() {
       })
 
       if (res.ok) {
-        toast.success("Produk baru berhasil ditambahkan")
         await fetchProducts()
         setNewProduct({
           name: "",
@@ -227,12 +200,10 @@ export default function ProductManagementPage() {
         })
         setNewProductImage(null)
         setShowAddForm(false)
-      } else {
-        toast.error("Gagal menambahkan produk")
       }
     } catch (error) {
       console.error("Error adding product:", error)
-      toast.error("Terjadi kesalahan saat menambah produk")
+      alert("Gagal menambahkan produk")
     } finally {
       setSaving(false)
     }
@@ -527,30 +498,9 @@ export default function ProductManagementPage() {
                         <Button onClick={() => handleEdit(product)} variant="outline" size="sm">
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" className="text-white">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Produk?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus {product.name}? Tindakan ini tidak dapat dibatalkan.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => handleDelete(product.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white"
-                              >
-                                Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button onClick={() => handleDelete(product.id)} variant="destructive" size="sm" className="text-white">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
 

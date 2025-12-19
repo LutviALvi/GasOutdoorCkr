@@ -6,18 +6,6 @@ import { useAuthStore } from "@/lib/auth-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Save, X, Plus, Trash2, Loader2 } from "lucide-react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { toast } from "sonner"
 
 interface AdminUser {
   id: string
@@ -49,29 +37,19 @@ export default function UsersPage() {
     }
     if (isHydrated) {
       fetchUsers()
-
-      const interval = setInterval(() => {
-        fetchUsers()
-      }, 30000)
-
-      return () => clearInterval(interval)
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil daftar user admin dari API
   async function fetchUsers() {
     try {
-      const res = await fetch("/api/admin/users", { 
-        cache: "no-store",
-        headers: { 'Cache-Control': 'no-cache' }
-      })
+      const res = await fetch("/api/admin/users")
       if (res.ok) {
         const data = await res.json()
         setUsers(data)
       }
     } catch (error) {
       console.error("Error fetching users:", error)
-      toast.error("Gagal mengambil data user")
     } finally {
       setLoading(false)
     }
@@ -97,16 +75,15 @@ export default function UsersPage() {
       })
 
       if (res.ok) {
-        toast.success("Data user berhasil diperbarui")
         await fetchUsers()
         setEditingId(null)
         setEditData({ username: "", password: "" })
       } else {
-        toast.error("Gagal menyimpan perubahan")
+        alert("Gagal menyimpan perubahan")
       }
     } catch (error) {
       console.error("Error updating user:", error)
-      toast.error("Terjadi kesalahan saat menyimpan")
+      alert("Gagal menyimpan perubahan")
     } finally {
       setSaving(false)
     }
@@ -119,7 +96,7 @@ export default function UsersPage() {
 
   const handleAddUser = async () => {
     if (!newUser.username || !newUser.password) {
-      toast.warning("Username dan password harus diisi")
+      alert("Username dan password harus diisi")
       return
     }
 
@@ -133,17 +110,16 @@ export default function UsersPage() {
       })
 
       if (res.ok) {
-        toast.success("User baru berhasil ditambahkan")
         await fetchUsers()
         setNewUser({ username: "", password: "" })
         setShowAddForm(false)
       } else {
         const data = await res.json()
-        toast.error(data.error || "Gagal menambahkan user")
+        alert(data.error || "Gagal menambahkan user")
       }
     } catch (error) {
       console.error("Error adding user:", error)
-      toast.error("Terjadi kesalahan saat menambah user")
+      alert("Gagal menambahkan user")
     } finally {
       setSaving(false)
     }
@@ -151,19 +127,19 @@ export default function UsersPage() {
 
   // Hapus user admin
   const handleDeleteUser = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus user ini?")) return
 
     try {
       const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" })
       if (res.ok) {
-        toast.success("User berhasil dihapus")
         await fetchUsers()
       } else {
         const data = await res.json()
-        toast.error(data.error || "Gagal menghapus user")
+        alert(data.error || "Gagal menghapus user")
       }
     } catch (error) {
       console.error("Error deleting user:", error)
-      toast.error("Terjadi kesalahan saat menghapus user")
+      alert("Gagal menghapus user")
     }
   }
 
@@ -293,34 +269,14 @@ export default function UsersPage() {
                           <Button onClick={() => handleEdit(user)} size="sm" variant="outline">
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="text-white"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Hapus User Admin?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Apakah Anda yakin ingin menghapus {user.username}? Akses admin untuk user ini akan dicabut.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  className="bg-red-600 hover:bg-red-700 text-white"
-                                >
-                                  Hapus
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            onClick={() => handleDeleteUser(user.id)}
+                            size="sm"
+                            variant="destructive"
+                            className="text-white"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </td>
                     </>
