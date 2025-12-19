@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-export const dynamic = "force-dynamic"
-import { supabaseAdmin } from "@/lib/supabase"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 // GET all discount codes
 export async function GET() {

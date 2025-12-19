@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 // PUT - Update admin user
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {

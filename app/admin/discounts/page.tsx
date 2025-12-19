@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
-import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,33 +56,13 @@ export default function DiscountsPage() {
       return
     }
     if (isHydrated) {
-      fetchDiscounts(true)
-
-      // Real-time listener for discount_codes table
-      const channel = supabase
-        .channel('admin-discounts-changes')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'discount_codes' },
-          () => {
-            fetchDiscounts(false) // Background update
-          }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
+      fetchDiscounts()
     }
   }, [isHydrated, isLoggedIn, router])
 
-  async function fetchDiscounts(showLoading = false) {
+  async function fetchDiscounts() {
     try {
-      if (showLoading) setLoading(true)
-      const res = await fetch(`/api/discounts?t=${Date.now()}`, { 
-        cache: "no-store",
-        headers: { 'Cache-Control': 'no-cache' } 
-      })
+      const res = await fetch("/api/discounts")
       if (res.ok) {
         const data = await res.json()
         setDiscountCodes(data)

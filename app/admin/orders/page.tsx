@@ -4,7 +4,6 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
-import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -73,30 +72,13 @@ export default function AdminOrdersPage() {
       return
     }
     if (isHydrated) {
-      fetchData(true)
-
-      // Real-time listener for bookings table
-      const channel = supabase
-        .channel('admin-orders-changes')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'bookings' },
-          () => {
-            fetchData(false) // Background update
-          }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
+      fetchData()
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil data pesanan dari API
-  async function fetchData(showLoading = false) {
+  async function fetchData() {
     try {
-      if (showLoading) setLoading(true)
       const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } })
       if (res.ok) {
         const bookingsData = await res.json()

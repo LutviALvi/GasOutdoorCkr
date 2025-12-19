@@ -12,6 +12,7 @@ import { useAuthStore } from "@/lib/auth-store"
 const menuItems = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/products", label: "Kelola Produk", icon: Package },
+  { href: "/admin/categories", label: "Kelola Kategori", icon: Package },
   { href: "/admin/orders", label: "Pesanan", icon: ShoppingCart },
   { href: "/admin/customers", label: "Histori Pelanggan", icon: Users },
   { href: "/admin/stock-summary", label: "Summary Stock", icon: BarChart3 },

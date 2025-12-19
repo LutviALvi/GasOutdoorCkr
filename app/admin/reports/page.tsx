@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
-import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -92,29 +91,12 @@ export default function ReportsPage() {
     }
     
     if (isHydrated) {
-        fetchData(true)
-
-        // Real-time listener for bookings (reports are based on bookings)
-        const channel = supabase
-          .channel('admin-reports-changes')
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'bookings' },
-            () => {
-              fetchData(false) // Background update
-            }
-          )
-          .subscribe()
-
-        return () => {
-          supabase.removeChannel(channel)
-        }
+        fetchData()
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil data pesanan dari API untuk laporan
-  const fetchData = async (showLoading = false) => {
-      if (showLoading) setLoading(true)
+  const fetchData = async () => {
       try {
           const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } })
           if (res.ok) {

@@ -87,7 +87,7 @@ export default function ProductsPage() {
 				<div className="grid gap-2">
 					<Label>Pilih Tanggal Sewa</Label>
 					<DateRangePicker value={rentalPeriod} onChange={handleDateChange} />
-					<p className="text-xs text-muted-foreground">Pilih tanggal mulai (Jumat/Sabtu/Minggu). Durasi otomatis 4 hari.</p>
+					<p className="text-sm text-brand-navy/60 mt-1">Durasi otomatis 4 hari (Jumat-Minggu/Senin)</p>
 				</div>
 
                 {/* Search and Filter Section */}

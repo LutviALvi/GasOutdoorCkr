@@ -225,7 +225,7 @@ export default function CheckoutPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={cart.items.length === 0 || days <= 0 || submitting}>
+              <Button type="submit" disabled={cart.items.length === 0 || days <= 0 || submitting} className="bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 text-white">
                 {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Lanjut ke Pembayaran
               </Button>

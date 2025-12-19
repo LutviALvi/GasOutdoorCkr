@@ -96,7 +96,7 @@ export default function CartPage() {
 				<div className="grid gap-6">
 					<h1 className="text-2xl font-bold">Keranjang</h1>
 					<div className="grid gap-2">
-						<span className="text-sm font-medium">Tanggal Sewa (Jumat, Sabtu, Minggu)</span>
+						<span className="text-sm font-medium">Tanggal Sewa (Maks 4 hari)</span>
 						<DateRangePicker value={rentalPeriod} onChange={setRentalPeriod} />
 						<p className="text-xs text-muted-foreground">Booking mulai hari Jumat, Sabtu, atau Minggu. Maks 4 hari.</p>
 					</div>
@@ -121,7 +121,7 @@ export default function CartPage() {
 								// Cart Item Component: Displays product details, price, and quantity controls
 								<li key={li.productId} className="flex flex-col sm:flex-row gap-4 border rounded-lg p-3">
 									{/* Product Image */}
-									<div className="relative w-full sm:w-28 h-40 sm:h-20 rounded-md overflow-hidden border">
+									<div className="relative w-24 h-24 sm:w-28 sm:h-20 flex-shrink-0 rounded-md overflow-hidden border">
 										<Image src={li.image || '/placeholder.svg'} alt={li.name} fill className="object-cover" />
 									</div>
 									
@@ -140,8 +140,17 @@ export default function CartPage() {
 												min={1}
 												max={li.stock}
 												onChange={(e) => {
-													const val = Number.parseInt(e.target.value || '1', 10);
-													setQuantity(li.productId, Math.min(Math.max(1, val), li.stock));
+													const val = e.target.value;
+													if (val === '') {
+														// Izinkan sementara agar user bisa menghapus angka
+														// @ts-ignore - kita hack dikit biar UI update, nanti onBlur atau logic lain bisa handle
+														setQuantity(li.productId, 0); 
+														return; 
+													}
+													const numVal = parseInt(val, 10);
+													if (!isNaN(numVal)) {
+														setQuantity(li.productId, Math.min(Math.max(1, numVal), li.stock));
+													}
 												}}
 											/>
 											<Button size="icon" variant="ghost" className="ml-auto sm:ml-4" onClick={() => removeItem(li.productId)} aria-label={`Hapus ${li.name}`}>
@@ -152,7 +161,7 @@ export default function CartPage() {
 
 									{/* Subtotal Display */}
 									<div className="w-full sm:min-w-[120px] sm:text-right flex flex-row sm:flex-col justify-between sm:justify-start items-center sm:items-end mt-2 sm:mt-0 border-t sm:border-t-0 pt-2 sm:pt-0">
-										<div className="text-sm text-muted-foreground">Subtotal</div>
+										<div className="text-sm text-muted-foreground sm:hidden">Subtotal</div>
 										<div className="font-semibold">Rp{li.subtotal.toLocaleString('id-ID')}</div>
 									</div>
 								</li>

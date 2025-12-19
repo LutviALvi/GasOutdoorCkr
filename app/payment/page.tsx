@@ -41,53 +41,11 @@ interface CheckoutData {
 
 const paymentMethods = [
   {
-    id: "cash",
-    name: "Bayar di Tempat (Cash)",
-    description: "Bayar tunai saat pengambilan barang",
-    icon: Wallet,
-    color: "from-emerald-500 to-teal-600",
-  },
-  {
     id: "transfer_bca",
     name: "Transfer Bank BCA",
     description: "Transfer ke rekening BCA",
     icon: Building2,
     color: "from-blue-500 to-blue-700",
-  },
-  {
-    id: "transfer_mandiri",
-    name: "Transfer Bank Mandiri",
-    description: "Transfer ke rekening Mandiri",
-    icon: Building2,
-    color: "from-yellow-500 to-yellow-700",
-  },
-  {
-    id: "transfer_bri",
-    name: "Transfer Bank BRI",
-    description: "Transfer ke rekening BRI",
-    icon: Building2,
-    color: "from-blue-600 to-indigo-700",
-  },
-  {
-    id: "ewallet_dana",
-    name: "DANA",
-    description: "Bayar dengan DANA",
-    icon: Smartphone,
-    color: "from-blue-400 to-cyan-500",
-  },
-  {
-    id: "ewallet_gopay",
-    name: "GoPay",
-    description: "Bayar dengan GoPay",
-    icon: Smartphone,
-    color: "from-green-500 to-emerald-600",
-  },
-  {
-    id: "ewallet_ovo",
-    name: "OVO",
-    description: "Bayar dengan OVO",
-    icon: Smartphone,
-    color: "from-purple-500 to-purple-700",
   },
   {
     id: "qris",
@@ -215,15 +173,15 @@ export default function PaymentPage() {
                   }`}
                   onClick={() => setSelectedMethod(method.id)}
                 >
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${method.color} text-white`}>
-                      <Icon className="h-6 w-6" />
+                  <CardContent className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                    <div className={`p-2 sm:p-3 rounded-xl bg-gradient-to-br ${method.color} text-white`}>
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold">{method.name}</h3>
-                      <p className="text-sm text-muted-foreground">{method.description}</p>
+                      <h3 className="font-semibold text-sm sm:text-base">{method.name}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{method.description}</p>
                     </div>
-                    {isSelected && <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0" />}
+                    {isSelected && <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />}
                   </CardContent>
                 </Card>
               )
@@ -264,7 +222,7 @@ export default function PaymentPage() {
                 <Button
                   onClick={handleSubmit}
                   disabled={!selectedMethod || submitting}
-                  className="w-full bg-gradient-to-r from-primary to-secondary"
+                  className="w-full bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 text-white"
                   size="lg"
                 >
                   {submitting ? (

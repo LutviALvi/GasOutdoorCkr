@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 import { sendInvoiceEmail } from "@/lib/email"
 import { format } from "date-fns"
 import { id as localeID } from "date-fns/locale"

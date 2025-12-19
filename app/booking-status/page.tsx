@@ -154,7 +154,7 @@ export default function BookingStatusPage() {
               </div>
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
+                className="w-full bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 text-white"
                 disabled={searching || !bookingCode.trim()}
               >
                 {searching ? "Mencari..." : "Cari Booking"}

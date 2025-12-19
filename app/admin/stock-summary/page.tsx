@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
-import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, LogOut, Calendar, Search, Loader2 } from "lucide-react"
 
@@ -45,22 +44,6 @@ export default function StockSummaryPage() {
         const sevenDaysLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
         setDateFrom(today.toISOString().split("T")[0])
         setDateTo(sevenDaysLater.toISOString().split("T")[0])
-
-        // Real-time listener for bookings (stock availability depends on bookings)
-        const channel = supabase
-          .channel('admin-stock-changes')
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'bookings' },
-            () => {
-              fetchProducts(false) // Background update
-            }
-          )
-          .subscribe()
-
-        return () => {
-          supabase.removeChannel(channel)
-        }
     }
   }, [isHydrated, isLoggedIn, router])
 
@@ -72,14 +55,11 @@ export default function StockSummaryPage() {
   }, [dateFrom, dateTo, isHydrated, isLoggedIn])
 
 
-  async function fetchProducts(showLoading = false) {
-    if (showLoading) setLoading(true)
+  async function fetchProducts() {
+    setLoading(true)
     try {
       // Kirim parameter tanggal ke API untuk mendapatkan sisa stok pada periode tersebut
-      const res = await fetch(`/api/products?startDate=${dateFrom}&endDate=${dateTo}&t=${Date.now()}`, { 
-        cache: "no-store",
-        headers: { 'Cache-Control': 'no-cache' } 
-      })
+      const res = await fetch(`/api/products?startDate=${dateFrom}&endDate=${dateTo}`, { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         // Transformasi data agar sesuai struktur tipe Product di atas
