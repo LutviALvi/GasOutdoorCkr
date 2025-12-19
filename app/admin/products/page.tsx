@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Save, X, Upload, Plus, Search, Trash2, Loader2 } from "lucide-react"
@@ -46,14 +47,34 @@ export default function ProductManagementPage() {
       return
     }
     if (isHydrated) {
-      fetchProducts()
+      fetchProducts(true)
+
+      // Real-time listener for products table
+      const channel = supabase
+        .channel('admin-products-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          () => {
+            fetchProducts(false) // Background update
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Fungsi untuk mengambil semua produk dari API
-  async function fetchProducts() {
+  async function fetchProducts(showLoading = false) {
     try {
-      const res = await fetch("/api/products")
+      if (showLoading) setLoading(true)
+      const res = await fetch(`/api/products?t=${Date.now()}`, { 
+        cache: "no-store",
+        headers: { 'Cache-Control': 'no-cache' } 
+      })
       if (res.ok) {
         const data = await res.json()
         setProducts(data)

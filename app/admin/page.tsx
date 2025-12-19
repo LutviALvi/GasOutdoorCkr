@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Package, ShoppingCart, DollarSign, Users, Eye, TrendingUp } from "lucide-react"
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
 import { id as localeID } from "date-fns/locale"
+import { supabase } from "@/lib/supabase"
 
 // Definisi tipe data yang sesuai dengan respon API
 // Tipe ini memastikan kita tahu bentuk data 'AdminOrder' yang diterima
@@ -40,18 +41,24 @@ export default function AdminDashboard() {
       return
     }
 
-    async function fetchData() {
+    async function fetchData(showLoading = false) {
        try {
+           if (showLoading) setLoading(true)
            // Mengambil Data Pesanan dari API
-           const resOrders = await fetch('/api/admin/orders', { cache: "no-store" })
+           const resOrders = await fetch(`/api/admin/orders?t=${Date.now()}`, { 
+               cache: "no-store",
+               headers: { 'Cache-Control': 'no-cache' } 
+           })
            if (resOrders.ok) {
                const data = await resOrders.json()
                setOrders(data)
            }
 
            // Mengambil Statistik Dashboard (untuk jumlah produk)
-           // Ini terpisah dari pesanan karena data produk ada di tabel berbeda
-           const resStats = await fetch('/api/admin/dashboard', { cache: "no-store" })
+           const resStats = await fetch(`/api/admin/dashboard?t=${Date.now()}`, { 
+               cache: "no-store",
+               headers: { 'Cache-Control': 'no-cache' } 
+           })
            if (resStats.ok) {
                const stats = await resStats.json()
                setTotalProducts(stats.totalProducts)
@@ -63,7 +70,26 @@ export default function AdminDashboard() {
            setLoading(false)
        }
     }
-    fetchData()
+
+    if (isLoggedIn) {
+        fetchData(true)
+
+        // Real-time listener for bookings table
+        const channel = supabase
+          .channel('admin-dashboard-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'bookings' },
+            () => {
+              fetchData(false) // Background update
+            }
+          )
+          .subscribe()
+
+        return () => {
+          supabase.removeChannel(channel)
+        }
+    }
 
   }, [isLoggedIn, router])
 

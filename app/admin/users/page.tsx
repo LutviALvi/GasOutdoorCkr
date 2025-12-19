@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Save, X, Plus, Trash2, Loader2 } from "lucide-react"
@@ -36,14 +37,34 @@ export default function UsersPage() {
       return
     }
     if (isHydrated) {
-      fetchUsers()
+      fetchUsers(true)
+
+      // Real-time listener for admin_users table
+      const channel = supabase
+        .channel('admin-users-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'admin_users' },
+          () => {
+            fetchUsers(false) // Background update
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil daftar user admin dari API
-  async function fetchUsers() {
+  async function fetchUsers(showLoading = false) {
     try {
-      const res = await fetch("/api/admin/users")
+      if (showLoading) setLoading(true)
+      const res = await fetch(`/api/admin/users?t=${Date.now()}`, { 
+        cache: "no-store",
+        headers: { 'Cache-Control': 'no-cache' } 
+      })
       if (res.ok) {
         const data = await res.json()
         setUsers(data)

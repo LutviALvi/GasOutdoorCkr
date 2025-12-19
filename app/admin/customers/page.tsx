@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/auth-store"
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -49,13 +50,30 @@ export default function CustomersPage() {
       return
     }
     if (isHydrated) {
-      fetchCustomers()
+      fetchCustomers(true)
+
+      // Real-time listener for bookings (customers are derived from bookings)
+      const channel = supabase
+        .channel('admin-customers-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bookings' },
+          () => {
+            fetchCustomers(false) // Background update
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [isHydrated, isLoggedIn, router])
 
   // Ambil data pelanggan dari API (yang sudah diolah dari tabel bookings)
-  async function fetchCustomers() {
+  async function fetchCustomers(showLoading = false) {
     try {
+      if (showLoading) setLoading(true)
       const res = await fetch(`/api/admin/customers?t=${Date.now()}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } })
       if (res.ok) {
         const data = await res.json()
