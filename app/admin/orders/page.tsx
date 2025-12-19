@@ -10,9 +10,19 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Eye, Phone, Calendar, DollarSign, Download, Trash2, Package, User, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, Package, Search, Trash2, Eye, Phone, Calendar, DollarSign, Download, User } from "lucide-react"
 import { format } from "date-fns"
 import { id as localeID } from "date-fns/locale"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface BookingItem {
   id: string
@@ -57,6 +67,11 @@ export default function AdminOrdersPage() {
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [isHydrated, setIsHydrated] = useState(false)
+
+  // Delete State
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [bookingToDelete, setBookingToDelete] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -188,18 +203,29 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const deleteBooking = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus booking ini?")) return
+  const confirmDelete = (id: string) => {
+    setBookingToDelete(id)
+    setDeleteDialogOpen(true)
+  }
 
+  const handleDelete = async () => {
+    if (!bookingToDelete) return
+
+    setDeleting(true)
     try {
-      const res = await fetch(`/api/bookings/${id}`, { method: "DELETE" })
+      const res = await fetch(`/api/bookings/${bookingToDelete}`, { method: "DELETE" })
       if (res.ok) {
+        setDeleteDialogOpen(false)
+        setBookingToDelete(null)
+        // Refresh data properly
         await fetchData()
       } else {
         alert("Gagal menghapus booking")
       }
     } catch (error) {
       console.error("Error deleting booking:", error)
+    } finally {
+        setDeleting(false)
     }
   }
 
@@ -470,7 +496,7 @@ export default function AdminOrdersPage() {
                       </SelectContent>
                     </Select>
 
-                    <Button variant="destructive" size="sm" onClick={() => deleteBooking(booking.id)} className="text-white">
+                    <Button variant="destructive" size="sm" onClick={() => confirmDelete(booking.id)} className="text-white">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -516,6 +542,30 @@ export default function AdminOrdersPage() {
 
         </CardContent>
       </Card>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pesanan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus pesanan ini? 
+              Tindakan ini tidak dapat dibatalkan dan akan menghapus data terkait dari histori.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={(e) => {
+                    e.preventDefault()
+                    handleDelete()
+                }}
+                className="bg-red-600 hover:bg-red-700"
+                disabled={deleting}
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Hapus"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }

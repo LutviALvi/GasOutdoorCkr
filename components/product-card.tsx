@@ -106,11 +106,11 @@ export default function ProductCard({ product }: { product?: Product }) {
 			</CardContent>
 			<CardFooter className="pt-0">
 				<div className="flex w-full gap-2">
-					<Button asChild variant="outline" className="w-1/2 border-brand-sage/40 hover:bg-brand-mint/20 bg-transparent text-brand-navy hover:text-brand-teal transition-colors">
+					<Button asChild variant="outline" className="w-1/2 border-brand-sage/40 hover:bg-brand-mint/20 bg-transparent text-brand-navy hover:text-brand-teal transition-colors text-xs md:text-sm">
 						<Link href={`/products/${p.slug}`}>Detail</Link>
 					</Button>
 					<Button
-						className="w-1/2 bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-lg hover:shadow-xl transition-all duration-300"
+						className="w-1/2 bg-gradient-to-r from-brand-teal to-brand-orange hover:from-brand-teal/90 hover:to-brand-orange/90 shadow-lg hover:shadow-xl transition-all duration-300 text-xs md:text-sm"
 						onClick={handleAddToCart}
 						disabled={p.stock <= 0 || !isDateSelected}
 						title={!isDateSelected ? 'Pilih tanggal sewa terlebih dahulu' : ''}>

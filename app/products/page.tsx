@@ -103,7 +103,7 @@ export default function ProductsPage() {
 					<Label>Kategori</Label>
 					<div className="flex gap-2 overflow-x-auto scrollbar-hide">
 						{categories.map((c) => (
-							<Button key={c} variant={category === c ? 'default' : 'outline'} size="sm" className="whitespace-nowrap" onClick={() => setCategory(c)}>
+							<Button key={c} variant={category === c ? 'default' : 'outline'} size="sm" className="whitespace-nowrap text-xs md:text-sm" onClick={() => setCategory(c)}>
 								{c}
 							</Button>
 						))}
