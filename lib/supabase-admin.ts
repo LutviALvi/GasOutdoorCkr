@@ -4,5 +4,19 @@ import { createClient } from '@supabase/supabase-js'
 // THIS FILE SHOULD ONLY BE IMPORTED IN SERVER-SIDE CONTEXTS (API Routes, Server Actions)
 export const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      persistSession: false,
+    },
+    global: {
+      fetch: (url, options) => {
+        return fetch(url, {
+          ...options,
+          cache: "no-store",
+          next: { revalidate: 0 },
+        })
+      },
+    },
+  }
 )
